@@ -23,7 +23,7 @@ import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
 public class JavaChatServer extends JFrame {
-
+//아아 마이크 테스트 인텔리에서 연결함요
     private static final long serialVersionUID = 1L;
     private JPanel contentPane;
     JTextArea textArea;
