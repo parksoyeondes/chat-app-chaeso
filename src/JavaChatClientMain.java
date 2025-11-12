@@ -24,6 +24,7 @@ public class JavaChatClientMain extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
+                    // ChatHomeFrame 메인 화면 클래스 생성
 					JavaChatClientMain frame = new JavaChatClientMain();
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -99,7 +100,7 @@ public class JavaChatClientMain extends JFrame {
 			String port_no = PortNum.trim();
 
             // 자바챗클라이언트 뷰에 넘겨줌
-			JavaChatClientView view = new JavaChatClientView(username, ip_addr, port_no);
+			ChatHomeFrame home = new ChatHomeFrame(username, ip_addr, port_no);
 			setVisible(false);   //dispose();  // 창을 완전히 닫고 자원 해제
 		}
 	}

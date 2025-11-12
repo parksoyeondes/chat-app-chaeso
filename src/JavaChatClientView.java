@@ -1,4 +1,5 @@
 //JavaChatClientView.java
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.DataInputStream;
@@ -21,9 +22,9 @@ import javax.swing.border.EmptyBorder;
 public class JavaChatClientView extends JFrame {
     private JPanel contentPane;
     private JTextField txtInput;
-    private String UserName;
     private JButton btnSend;
-    private JTextArea textArea;
+    private JTextArea textArea;// 채팅창 UI 요소-------
+    private String UserName; // 로그인/메시지 태그로 쓰는 사용자 이름
     private static final int BUF_LEN = 128; // Windows 처럼 BUF_LEN 을 정의
     private Socket socket; // 연결소켓
     private InputStream is;
@@ -32,14 +33,14 @@ public class JavaChatClientView extends JFrame {
     private DataOutputStream dos;
     private JLabel lblUserName;
 
-	/**
-	 * Create the frame.
-	 */
+
+    //생성자
 	public JavaChatClientView(String username, String ip_addr, String port_no) {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 392, 462);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+        contentPane.setBackground(new Color(232, 245, 233)); // 연한 초록색 느낌
 		setContentPane(contentPane);
 		contentPane.setLayout(null);
 
@@ -65,21 +66,28 @@ public class JavaChatClientView extends JFrame {
 		lblUserName.setBounds(12, 364, 67, 40);
 		contentPane.add(lblUserName);
 		setVisible(true);
-	
-		AppendText("User " + username + " connecting " + ip_addr + " " + port_no + "\n");
-		UserName = username;
+
+
+		//AppendText("User " + username + " connecting " + ip_addr + " " + port_no + "\n");
+		UserName = username; // 전달 받은 유저 이름 인자
 		lblUserName.setText(username + ">");
 
         try {
+            //서버 정보가 담긴 서버와 통신을 위한 소캣 생성
             socket = new Socket(ip_addr, Integer.parseInt(port_no));
+            //인풋 -> 데이터스트림으로 감쌈
             is = socket.getInputStream();
             dis = new DataInputStream(is);
+            //아웃풋 -> 도 데이터 스트림으로 감쌈
             os = socket.getOutputStream();
             dos = new DataOutputStream(os);
 
+            //서버에게 ( 방금 로그인한 유저"이름"전달 )
             SendMessage("/login " + UserName);
+            //수신 스레드 생성 후 start()하기
             ListenNetwork net = new ListenNetwork();
             net.start();
+
             Myaction action = new Myaction();
             btnSend.addActionListener(action); 
             txtInput.addActionListener(action);
@@ -141,11 +149,11 @@ public class JavaChatClientView extends JFrame {
     }
 
 
-    // Server에게 network로 전송
+    // Server에게 유저이름 USername을 network로 전송
     public void SendMessage(String msg) {
         try {
-            // Use writeUTF to send messages
-            dos.writeUTF(msg);
+            //  writeUTF 를 송신으로 사용함
+            dos.writeUTF(msg);//이름 송신
         } catch (IOException e) {
             AppendText("dos.write() error");
             try {
