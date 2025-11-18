@@ -28,3 +28,9 @@ public class ChatsPanel extends JPanel implements TabView {
     // 외부에서 사용할 수 있는 편의 메서드
     public void addRoom(String name) { model.addElement(name); }
 }
+//    //( 로그인 사용자 목록, 채팅방 목록 "데이터") 넣을 리스트 모델
+//    private DefaultListModel<String> chatModel = new DefaultListModel<>();
+//    JList<String> chatList = new JList<>(chatModel); // 화면 상 보이는 리스트
+//
+//    private DefaultListModel<String> friendModel = new DefaultListModel<>();
+//    JList<String> friendList = new JList<>(friendModel);

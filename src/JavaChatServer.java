@@ -22,97 +22,40 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
-public class JavaChatServer extends JFrame {
-//아아 마이크 테스트 인텔리에서 연결함요
-    private static final long serialVersionUID = 1L;
-    private JPanel contentPane;
-    JTextArea textArea;
-    private JTextField txtPortNumber;
+import static java.rmi.server.LogStream.log;
 
+public class JavaChatServer {
     private ServerSocket socket; // 서버소켓
     private Socket client_socket; // accept() 에서 생성된 client 소켓, AcceptServer에서 지역변수로 선언해도 됩니다. 
     private Vector<UserService> UserVec = new Vector<>(); // 연결된 사용자를 저장할 벡터, ArrayList와 같이 동적 배열을 만들어주는 컬렉션 객체
-    private static final int BUF_LEN = 128; // Windows 처럼 BUF_LEN 을 정의
+    //private static final int BUF_LEN = 128; // Windows 처럼 BUF_LEN 을 정의
 
-    /**
-     * Launch the application.
-     */
     public static void main(String[] args) {   // 스윙 비주얼 디자이너를 이용해 GUI를 만들면 자동으로 생성되는 main 함수
-        EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                try {
-                    JavaChatServer frame = new JavaChatServer();      // JavaChatServer 클래스의 객체 생성
-                    frame.setVisible(true);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+       JavaChatServer server = new JavaChatServer();
     }
 
     public JavaChatServer() {
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setBounds(100, 100, 338, 386);
-        contentPane = new JPanel();
-        contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
-        setContentPane(contentPane);
-        contentPane.setLayout(null);
-
-        JScrollPane scrollPane = new JScrollPane();
-        scrollPane.setBounds(12, 10, 300, 244);
-        contentPane.add(scrollPane);
-
-        textArea = new JTextArea();
-        textArea.setEditable(false);
-        scrollPane.setViewportView(textArea);
-
-        JLabel lblNewLabel = new JLabel("Port Number");
-        lblNewLabel.setBounds(12, 264, 87, 26);
-        contentPane.add(lblNewLabel);
-
-        txtPortNumber = new JTextField();
-        txtPortNumber.setHorizontalAlignment(SwingConstants.CENTER);
-        txtPortNumber.setText("30000");
-        txtPortNumber.setBounds(111, 264, 199, 26);
-        contentPane.add(txtPortNumber);
-        txtPortNumber.setColumns(10);
-
-        JButton btnServerStart = new JButton("Server Start");
-        btnServerStart.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                try {
-                    socket = new ServerSocket(Integer.parseInt(txtPortNumber.getText()));
-                } catch (NumberFormatException | IOException e1) {
-                    e1.printStackTrace();
-                }
-                AppendText("Chat Server Running..");
-                btnServerStart.setText("Chat Server Running..");
-                btnServerStart.setEnabled(false); // 서버를 더이상 실행시키지 못 하게 막는다
-                txtPortNumber.setEnabled(false); // 더이상 포트번호 수정못 하게 막는다
-                AcceptServer accept_server = new AcceptServer();   // 멀티 스레드 객체 생성
-                accept_server.start();
-            }
-        });
-        btnServerStart.setBounds(12, 300, 300, 35);
-        contentPane.add(btnServerStart);
+        try {
+            socket = new ServerSocket(30000);//오픈 소켓 생성
+            AcceptServer accept_server = new AcceptServer(); // 블로킹 클라이언트소켓 생성
+            accept_server.start();
+        } catch (IOException e) {
+            log("Server start error: " + e.getMessage());
+        }
     }
-
     
     // 새로운 참가자 accept() 하고 user thread를 새로 생성한다. 한번 만들어서 계속 사용하는 스레드
     class AcceptServer extends Thread {
         public void run() {
             while (true) { // 사용자 접속을 계속해서 받기 위해 while문
                 try {
-                    AppendText("Waiting clients ...");
                     client_socket = socket.accept(); // accept가 일어나기 전까지는 무한 대기중
-                    AppendText("새로운 참가자 from " + client_socket);
-                    // User 당 하나씩 Thread 생성
+                    // User 당 하나씩 전용 Thread 생성
                     UserService new_user = new UserService(client_socket);
                     UserVec.add(new_user); // 새로운 참가자 배열에 추가
-                    AppendText("사용자 입장. 현재 참가자 수 " + UserVec.size());
                     new_user.start(); // 만든 객체의 스레드 실행
                 } catch (IOException e) {
-                    AppendText("!!!! accept 에러 발생... !!!!");
+                    log("!!!! accept 에러 발생... !!!!");
                 }
             }
         }
@@ -121,14 +64,6 @@ public class JavaChatServer extends JFrame {
     // 서버를 정상적으로 종료하고 싶은 경우, 서버 GUI에 종료 버튼을 만들어 서버소켓을 닫는 스레드를 추가로 만들거나,
     // 또는 GUI 창이 닫히는 순간(addWindowListener의 windowClosing 메서드 등에서)
     // ServerSocket.close()를 호출하여 accept()를 깨워서 AcceptServer를 종료하는 방법이나 플래그 신호 사용 방법 등이 있을 수 있음
-    
-    
-    //JtextArea에 문자열을 출력해 주는 기능을 수행하는 맴버 함수
-    public void AppendText(String str) {
-        textArea.append(str + "\n");   //전달된 문자열 str을 textArea에 추가
-        textArea.setCaretPosition(textArea.getText().length());  // textArea의 커서(캐럿) 위치를 텍스트 영역의 마지막으로 이동
-    }
-
     
     // User 당 생성되는 Thread, 유저의 수만큼 스레스 생성
     // 이 UserService 스레드는 '소켓 객체'를 이용해서 실제 특정 유저와 메시지를 주고 받는 기능을 수행하는 스레드
@@ -158,13 +93,12 @@ public class JavaChatServer extends JFrame {
                 String line1 = dis.readUTF();      // 제일 처음 연결되면 클라이언트의 SendMessage("/login " + UserName);에 의해 "/login UserName" 문자열이 들어옴
                 String[] msg = line1.split(" ");   //line1이라는 문자열을 공백(" ")을 기준으로 분할
                 UserName = msg[1].trim();          //분할된 문자열 배열 msg의 두 번째 요소(인덱스 1)를 가져와 trim 메소드를 사용하여 앞뒤의 공백을 제거
-                AppendText("새로운 참가자 " + UserName + " 입장.");
                 WriteOne("Welcome to Java chat server\n");
                 WriteOne(UserName + "님 환영합니다.\n"); // 연결된 사용자에게 정상접속을 알림
                 String br_msg ="["+UserName+"]님이 입장 하였습니다.\n";    //broadcastMessage 생성 [추가]
                 WriteAll(br_msg); // broadcastMessage 전송, 아직 user_vc에 새로 입장한 user는 포함되지 않았으므로 새로운 참가자한테는 전송하지 않음 [추가]
             } catch (Exception e) {
-                AppendText("userService error");
+                //AppendText("userService error");
             }
         }
 
@@ -173,7 +107,7 @@ public class JavaChatServer extends JFrame {
             UserVec.removeElement(this); // 에러가난 현재 객체를 벡터에서 지운다
         	String br_msg ="["+UserName+"]님이 퇴장 하였습니다.\n";   // 다른 User들에게 전송할 메시지 생성  [추가]
         	WriteAll(br_msg); // 다른 User들에게 전송  [추가]
-            AppendText("사용자 퇴장. 현재 참가자 수 " + UserVec.size());
+            //AppendText("사용자 퇴장. 현재 참가자 수 " + UserVec.size());
         }
         
         // 클라이언트로 메시지 전송
@@ -181,7 +115,7 @@ public class JavaChatServer extends JFrame {
             try {
                 dos.writeUTF(msg);
             } catch (IOException e) {
-                AppendText("dos.write() error");
+               // AppendText("dos.write() error");
                 try {
                     dos.close();
                     dis.close();
@@ -212,7 +146,7 @@ public class JavaChatServer extends JFrame {
                 try {
                     String msg = dis.readUTF(); 
                     msg = msg.trim();   //msg를 가져와 trim 메소드를 사용하여 앞뒤의 공백을 제거
-                    AppendText(msg); // server 화면에 출력
+                    //AppendText(msg); // server 화면에 출력
                     
                     String[] args = msg.split(" "); // 명령어와 매개변수 분리
                     
@@ -263,7 +197,7 @@ public class JavaChatServer extends JFrame {
                     
                     
                 } catch (IOException e) {
-                    AppendText("dis.readUTF() error");
+                   // AppendText("dis.readUTF() error");
                     try {
                         dos.close();
                         dis.close();

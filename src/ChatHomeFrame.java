@@ -1,20 +1,15 @@
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.*;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.Socket;
 
-// 사용자가 로그인하면 뜨는 메인홈
+// 사용자가 로그인하면 뜨는 메인홈 ( 이건 GUI 용 )
 public class ChatHomeFrame extends JFrame {
-    //채팅앱 전체를 대표하는 클라이언트 ( 네트워크를 관리하는 )
-    private Socket socket;
-    private DataInputStream dis;
-    private DataOutputStream dos;
 
+    private ClientNet clientNet; // ( 네트워크 용 따로 )
     private String username;
+    private String Ip_adrr;
+    private String Port_no;
     private ChatsPanel chatsPanel = new ChatsPanel();
     private FriendsPanel friendsPanel = new FriendsPanel();
 
@@ -22,33 +17,22 @@ public class ChatHomeFrame extends JFrame {
     // 카드 이름 = ( 친구탭 , 채팅방탭 )
     private static final String CARD_chat   = "CARD_chat";
     private static final String CARD_friends = "CARD_friends";
-
-    //배치관리자 카드레이아웃 생성
     private CardLayout cardLayout = new CardLayout();
     private JPanel jp = new JPanel(cardLayout);
-
-
-
-//    //( 로그인 사용자 목록, 채팅방 목록 "데이터") 넣을 리스트 모델
-//    private DefaultListModel<String> chatModel = new DefaultListModel<>();
-//    JList<String> chatList = new JList<>(chatModel); // 화면 상 보이는 리스트
-//
-//    private DefaultListModel<String> friendModel = new DefaultListModel<>();
-//    JList<String> friendList = new JList<>(friendModel);
 
 
     //생성자
     public ChatHomeFrame(String username, String Ip_adrr, String Port_no) {
         this.username = username;
-
+        this.Ip_adrr = Ip_adrr;
+        this.Port_no = Port_no;
 
         //기본 배경 깔기
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); //창의 X 버튼을 누르면 프로세스까지 종료하도록 설정.
-        setSize(300, 400); // 창 크기 설정
-        //setLocationRelativeTo(null); // 창을 화면 정중앙에 위치.
+        setSize(300, 400);
         getContentPane().setLayout(new BorderLayout());
         //프레임의 컨텐트 영역 레이아웃을 BorderLayout으로.
-        //북(NORTH)/서(WEST)/중앙(CENTER)/동(EAST)/남(SOUTH) 영역으로 배치 가능.
+        //북(NORTH)/서(WEST)/중앙(CENTER)/동(EAST)/남(SOUTH) 영역
         jp.setBackground(Color.WHITE);
         getContentPane().add(jp, BorderLayout.CENTER);//중앙(CENTER)에 jp 패널을 추가 + JP핀넬은 현재 카드레이아웃 관리자임
 
@@ -104,16 +88,9 @@ public class ChatHomeFrame extends JFrame {
             }
         });
         cardLayout.show(jp, CARD_chat);
+        setVisible(true);//이제 GUI는 위에서 끝났고
 
-        setVisible(true);
-        try{
-            //소켓 생성
-            socket = new Socket(Ip_adrr, Integer.parseInt(Port_no));
-            dis = new DataInputStream(socket.getInputStream());
-            dos = new DataOutputStream(socket.getOutputStream());
-
-        }catch(IOException e){
-
-        }
+        // 통신을 위한 소켓생성 -> 이걸 ClientNet에서 할거임 ㄱㄱ
+        clientNet = new ClientNet(username, Ip_adrr, Port_no);
     }
 }
