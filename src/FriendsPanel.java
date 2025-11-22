@@ -12,8 +12,8 @@ public class FriendsPanel extends JPanel implements TabView {
         add(new JScrollPane(list), BorderLayout.CENTER);
 
         // 데모용 데이터
-        model.addElement("홍길동");
-        model.addElement("김개발");
+//        model.addElement("홍길동");
+//        model.addElement("김개발");
     }
 
     public String getTitle() { return "친구"; }

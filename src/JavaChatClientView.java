@@ -67,7 +67,6 @@ public class JavaChatClientView extends JFrame {
 		contentPane.add(lblUserName);
 		setVisible(true);
 
-
 		//AppendText("User " + username + " connecting " + ip_addr + " " + port_no + "\n");
 		UserName = username; // 전달 받은 유저 이름 인자
 		lblUserName.setText(username + ">");
