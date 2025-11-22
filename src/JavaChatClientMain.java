@@ -9,7 +9,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
 public class JavaChatClientMain extends JFrame {
-    //마이크 테스트 ~ 인텔리~
+    
     private JPanel contentPane;
     private JTextField txtUserName;
     //private JTextField txtIpAddress;
