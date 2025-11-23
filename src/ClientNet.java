@@ -12,7 +12,7 @@ public class ClientNet {
     //ChatHomeFrame에서 인자로 넘긴거 생성자로 받기
     public ClientNet(String username, String ip, String port) {
         try{
-            socket = new Socket(username, Integer.parseInt(port));
+            socket = new Socket(ip, Integer.parseInt(port));
             dis = new DataInputStream(socket.getInputStream());
             dos = new DataOutputStream(socket.getOutputStream());
             //서버에게 방금 로그인 한 유저이름 전달
@@ -29,8 +29,9 @@ public class ClientNet {
         public void run() {
             while (true) {
                 try {
-                    // Use readUTF to read messages
+                    // 서버에게서 읽음
                     String msg = dis.readUTF();
+
                 } catch (IOException e) {
 
                     try {
@@ -51,7 +52,7 @@ public class ClientNet {
             // Use writeUTF to send messages
             dos.writeUTF(msg);
         } catch (IOException e) {
-            log("dos.write() error");
+           // log("dos.write() error");
             try {
                 dos.close();
                 dis.close();
