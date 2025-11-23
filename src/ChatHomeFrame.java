@@ -100,6 +100,6 @@ public class ChatHomeFrame extends JFrame {
         setVisible(true);//이제 GUI는 위에서 끝났고
 
         // 통신을 위한 소켓생성 -> 이걸 ClientNet에서 할거임
-        clientNet = new ClientNet(username, Ip_adrr, Port_no);
+        clientNet = new ClientNet(username, Ip_adrr, Port_no, friendsPanel, chatsPanel);
     }
 }

@@ -10,6 +10,7 @@ public class FriendsPanel extends JPanel implements TabView {
     private final DefaultListModel<String> model = new DefaultListModel<>();
     private final JList<String> friendList = new JList<>(model);
 
+
     public FriendsPanel(String myName) {
         this.myName = myName;
 
@@ -84,6 +85,8 @@ public class FriendsPanel extends JPanel implements TabView {
         Image raw = new ImageIcon(url).getImage();
         Image scaled = raw.getScaledInstance(width, height, Image.SCALE_SMOOTH);
         return new ImageIcon(scaled);
+
+
     }
 
     // ===== TabView 구현 =====
@@ -92,20 +95,38 @@ public class FriendsPanel extends JPanel implements TabView {
     @Override public JComponent getComponent() { return this; }
 
     // ===== 목록 조작 메서드 =====
-    public void setUsers(java.util.List<String> users) {
-        model.clear();
-        for (String u : users) {
-            if (!u.equals(myName)) model.addElement(u);
+    public void setUserList(String [] names) {
+        System.out.println("[FriendsPanel] setUserList 호출됨, 길이 = " + names.length);
+        model.clear();              // 기존 목록 싹 지우고
+        for (int i = 0; i < names.length; i++) {
+            if (names[i] == null) {
+                continue;
+            }
+            String trimmed = names[i].trim();
+
+            if (trimmed.isEmpty())
+                continue;   // 공백/빈 문자열이면 무시
+            model.addElement(trimmed);
         }
     }
-    public void addFriend(String name) {
-        if (name == null) return;
-        name = name.trim();
-        if (!name.equals(myName) && !model.contains(name)) model.addElement(name);
+
+    public void clearFriends() {
+        model.clear();
     }
-    public void removeFriend(String name) {
-        if (name == null) return;
-        model.removeElement(name.trim());
+
+    //새로 들어온 유저 집어넣기
+    public void addUser(String name) {
+        if (name == null)
+            return;
+        String trimmed = name.trim(); // 혹시 모를 공백 제거
+        if (trimmed.isEmpty())
+            return;
+
+        // 이미 있는 이름이면 중복 추가 안 하기 -> 근데 새로 로그인해서 들어오면 어차피 이 모델에 없으니까 넣어지게 됨
+        if (!model.contains(trimmed)) {
+            model.addElement(trimmed);
+        }
     }
-    public void clearFriends() { model.clear(); }
+
+
 }

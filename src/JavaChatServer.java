@@ -92,7 +92,9 @@ public class JavaChatServer {
                 UserName = msg[1].trim();          //분할된 문자열 배열 msg의 두 번째 요소(인덱스 1)를 가져와 trim 메소드를 사용하여 앞뒤의 공백을 제거
 
                 //새로 들어온 클라에게 현재 접속자 전체 목록 내려주기
-                dos.writeUTF("/userList " + getCurrentUserList());
+                WriteOne("/userName " + getCurrentUserList());
+                //다른 클라에게도 new 사람이 들어왔다고 알리기
+                WriteAll("/newUser " + UserName);
 
 
             } catch (Exception e) {
@@ -102,7 +104,7 @@ public class JavaChatServer {
 
         public String getCurrentUserList() {
             StringBuilder builder = new StringBuilder(); // 모드 유저이름 하나의 문자열로 만들어주는 클래스
-            for(int i = 1; i < user_vc.size(); i++){
+            for(int i = 0; i < user_vc.size(); i++){
                 UserService user = user_vc.get(i);
                 if(user.UserName == null || user.UserName.isEmpty()){
                     continue;
