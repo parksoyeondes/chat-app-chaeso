@@ -39,6 +39,7 @@ public class JavaChatClientMain extends JFrame {
      * Create the frame.
      */
     public JavaChatClientMain() {
+    	setTitle("Log in");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setBounds(100, 100, 300, 400);
 
