@@ -14,14 +14,13 @@ public class ChatHomeFrame extends JFrame {
     private FriendsPanel friendsPanel;
     private ChatsPanel chatsPanel;
 
-    //친구탭 누르면 그 탭이 맨앞으로, 방 탭 누르면 그 탭이 앞으로 -> CardLayout씀
-    // 카드 이름 = ( 친구탭 , 채팅방탭 )
+    // 친구탭 / 채팅탭 카드 이름
     private static final String CARD_friends = "CARD_friends";
     private static final String CARD_chat    = "CARD_chat";
     private CardLayout cardLayout = new CardLayout();
     private JPanel jp = new JPanel(cardLayout);
 
-    //생성자
+    // 생성자
     public ChatHomeFrame(String username, String Ip_adrr, String Port_no) {
         this.username = username;
         this.Ip_adrr = Ip_adrr;
@@ -31,15 +30,21 @@ public class ChatHomeFrame extends JFrame {
         friendsPanel = new FriendsPanel(username);
         chatsPanel   = new ChatsPanel();          // 필요하면 new ChatsPanel(username)으로 수정 가능
 
-        //기본 배경 깔기
+        // 기본 배경 깔기
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); //창의 X 버튼을 누르면 프로세스까지 종료하도록 설정.
         setSize(300, 400);
-        getContentPane().setLayout(new BorderLayout());
-        //프레임의 컨텐트 영역 레이아웃을 BorderLayout으로.
-        //북(NORTH)/서(WEST)/중앙(CENTER)/동(EAST)/남(SOUTH) 영역
-        jp.setBackground(Color.WHITE);
-        getContentPane().add(jp, BorderLayout.CENTER);//중앙(CENTER)에 jp 패널을 추가 + jp 패널은 현재 카드레이아웃 관리자임
+        setLocationRelativeTo(null); // 화면 중앙 배치 (원하면 빼도 됨)
 
+        // 처음 메인화면 들어왔을 때 타이틀: friends
+        setTitle("friends");
+
+        getContentPane().setLayout(new BorderLayout());
+        // 프레임의 컨텐트 영역 레이아웃을 BorderLayout으로.
+        // 북(NORTH)/서(WEST)/중앙(CENTER)/동(EAST)/남(SOUTH) 영역
+        jp.setBackground(Color.WHITE);
+        getContentPane().add(jp, BorderLayout.CENTER); // 중앙(CENTER)에 jp 패널 추가 (카드레이아웃)
+
+        // 왼쪽 사이드바
         JPanel left = new JPanel();
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
         left.setPreferredSize(new Dimension(80, 0));
@@ -76,7 +81,7 @@ public class ChatHomeFrame extends JFrame {
         left.add(btnChats);
         left.add(Box.createVerticalGlue());
 
-        // 가운데 카드 등록;
+        // 가운데 카드 등록
         jp.add(friendsPanel.getComponent(), CARD_friends);
         jp.add(chatsPanel.getComponent(),   CARD_chat);
 
@@ -85,19 +90,24 @@ public class ChatHomeFrame extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 cardLayout.show(jp, CARD_chat);
                 chatsPanel.refresh();
+                // 채팅탭일 때 타이틀
+                setTitle("Chats");
             }
         });
+
         btnFriends.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 cardLayout.show(jp, CARD_friends);
                 friendsPanel.refresh();
+                // 친구탭일 때 타이틀
+                setTitle("Friends");
             }
         });
 
         // 처음 화면: 친구탭 보이게
         cardLayout.show(jp, CARD_friends);
 
-        setVisible(true);//이제 GUI는 위에서 끝났고
+        setVisible(true); // GUI 보이게
 
         // 통신을 위한 소켓생성 -> 이걸 ClientNet에서 할거임
         clientNet = new ClientNet(username, Ip_adrr, Port_no, friendsPanel, chatsPanel);
