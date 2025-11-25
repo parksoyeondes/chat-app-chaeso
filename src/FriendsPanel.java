@@ -188,4 +188,14 @@ public class FriendsPanel extends JPanel implements TabView {
     }
 
 
+    // 유저 목록 반환하기
+    public String [] getFriendsListl(){
+        //일단 받을 자리 만들고
+        int size = model.getSize();
+        String usersForChat [] = new String[size];
+        for(int i = 0; i < model.size(); i++){
+            usersForChat[i] = model.getElementAt(i);
+        }
+        return usersForChat;
+    }
 }

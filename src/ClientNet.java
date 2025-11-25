@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.Socket;
 
 public class ClientNet {
+
     Socket socket;
     private InputStream is;
     private OutputStream os;

@@ -25,6 +25,7 @@ import javax.swing.border.EmptyBorder;
 import static java.rmi.server.LogStream.log;
 
 public class JavaChatServer {
+
     private ServerSocket socket;
     private Socket client_socket;
     private Vector<UserService> UserVec = new Vector<>();
@@ -53,6 +54,8 @@ public class JavaChatServer {
                     client_socket = socket.accept(); // accept가 일어나기 전까지는 무한 대기중
                     // User 당 하나씩 전용 Thread 생성
                     UserService new_user = new UserService(client_socket);
+
+                    //만들면서 정보 저장하기
                     //-> 유저 한 명당 "하나씩" 존재하는 스레드객체 넣기 = client_socket임
                     UserVec.add(new_user);
                     new_user.start(); // 만든 객체의 스레드 실행
