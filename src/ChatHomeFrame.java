@@ -26,9 +26,10 @@ public class ChatHomeFrame extends JFrame {
         this.Ip_adrr = Ip_adrr;
         this.Port_no = Port_no;
 
-        // 패널 생성할 때 username 넘겨주기
+        // 채팅탭 + 유저 로그인 탭
         friendsPanel = new FriendsPanel(username);
-        chatsPanel   = new ChatsPanel();          // 필요하면 new ChatsPanel(username)으로 수정 가능
+        chatsPanel   = new ChatsPanel();
+        chatsPanel.setFriendsList(friendsPanel);
 
         // 기본 배경 깔기
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); //창의 X 버튼을 누르면 프로세스까지 종료하도록 설정.
@@ -111,5 +112,6 @@ public class ChatHomeFrame extends JFrame {
 
         // 통신을 위한 소켓생성 -> 이걸 ClientNet에서 할거임
         clientNet = new ClientNet(username, Ip_adrr, Port_no, friendsPanel, chatsPanel);
+        chatsPanel.setClientNet(clientNet); // 통신용 파일이 만들어지고 나서야 패팅패널에 넘겨주기
     }
 }

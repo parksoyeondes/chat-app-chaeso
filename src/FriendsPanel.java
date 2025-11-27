@@ -155,7 +155,6 @@ public class FriendsPanel extends JPanel implements TabView {
 
     // ===== 목록 조작 메서드 =====
     public void setUserList(String [] names) {
-        System.out.println("[FriendsPanel] setUserList 호출됨, 길이 = " + names.length);
         model.clear();              // 기존 목록 싹 지우고
         for (int i = 0; i < names.length; i++) {
             if (names[i] == null) {
@@ -189,7 +188,7 @@ public class FriendsPanel extends JPanel implements TabView {
 
 
     // 유저 목록 반환하기
-    public String [] getFriendsListl(){
+    public String [] getFriendsList(){
         //일단 받을 자리 만들고
         int size = model.getSize();
         String usersForChat [] = new String[size];

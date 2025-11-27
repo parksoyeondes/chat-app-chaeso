@@ -1,5 +1,7 @@
 import java.io.*;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ClientNet {
 
@@ -8,13 +10,16 @@ public class ClientNet {
     private OutputStream os;
     private DataInputStream dis;
     private DataOutputStream dos;
-    private FriendsPanel friendsPanel;  // 🔹 UI 참조 보관
+    private FriendsPanel friendsPanel;
     private ChatsPanel chatsPanel;
+    private Map<String, ChatRoom> roomMap = new HashMap<>(); //  roomId 이랑 채팅방 객체?
+    private String me;
 
 
     //ChatHomeFrame에서 인자로 넘긴거 생성자로 받기
     public ClientNet(String username, String ip, String port,FriendsPanel friendsPanel, ChatsPanel chatsPanel) {
         try{
+            me = username; // 나 자신.
             this.chatsPanel = chatsPanel;
             this.friendsPanel = friendsPanel;
             socket = new Socket(ip, Integer.parseInt(port));
@@ -37,30 +42,83 @@ public class ClientNet {
         public void run() {
             while (true) {
                 try {
-                    // 서버에게서 읽음
                     String msg = dis.readUTF();
-                    String [] msgs = msg.split(" ",2);
-                    String cmd = msgs[0];
-                    String listname = msgs[1]; // /userName이라는 프로토콜이랑 유저이름,분리함
 
-                    //이제 또 합쳐진 이름 리스트 분리해야함
+                    // 1) 우선 명령어(cmd)만 뽑기 ― 최대 2조각
+                    //    예:
+                    //      "/userName 손채림,박소연"
+                    //      "/newUser 아무개"
+                    //      "/openRoom 손채림,박소연"
+                    //      "/roomMsg 손채림,박소연 [채림] 안녕 난 채리밍야"
+                    String[] msgs = msg.split(" ", 2);
+                    String cmd = msgs[0];                // 명령어
+                    String rest = (msgs.length > 1) ? msgs[1] : ""; // 나머지 문자열
+
                     if (cmd.equals("/userName")) {
-                        String[] names = listname.split(","); // ["손채림", "박소연", "아무개"]
-                        System.out.println("[RECV] /userName, names.length=" + names.length);
-
-                        // UI 갱신
+                        // rest = "손채림,박소연,아무개"
+                        String[] names = rest.split(",");
                         friendsPanel.setUserList(names);
 
                     } else if (cmd.equals("/newUser")) {
-                        String newUser = listname; // "새로온사람"
-                        // → 목록에 한 명 추가
+                        String newUser = rest;
                         friendsPanel.addUser(newUser);
+
+                    } else if (cmd.equals("/openRoom")) {
+                        String roomId = rest; // "손채림,박소연"
+
+                        // 이미 있는 방인지 확인
+                        ChatRoom room = roomMap.get(roomId);
+                        if (room == null) {
+                            room = new ChatRoom(roomId, ClientNet.this);
+                            roomMap.put(roomId, room);
+                        } else {
+                            // 이미 있는 방이라면 다시 보이게 하기
+                            room.setVisible(true);
+                            room.toFront();
+                            room.requestFocus();
+                        }
+
+                        // Chats 탭 리스트에도 방 이름 보여주기
+                        if (chatsPanel != null) {
+                            chatsPanel.addRoom(roomId);
+                        }
+                        room.setVisible(true);
+
+                    } else if (cmd.equals("/roomMsg")) {
+                        // /roomMsg는 "내용"이 길 수 있으니까 다시 3조각으로 split
+                        // 형식: /roomMsg roomId 메시지...
+                        String[] parts = msg.split(" ", 3);
+                        if (parts.length < 3) {
+                            // 형식 이상하면 무시
+                            continue;
+                        }
+                        String roomId  = parts[1]; // "손채림,박소연"
+                        String chatMsg = parts[2]; // "[채림] 안녕 난 채림이야"
+
+                        //  [이름] 떼어내기
+                        if (chatMsg.startsWith("[")) {
+                            int idx = chatMsg.indexOf("]");
+                            if (idx > 1) {
+                                String senderName = chatMsg.substring(1, idx); // [] 안
+                                String body = chatMsg.substring(idx + 1).trim(); // 나머지
+
+                                // 보낸 이가 나인지 비교
+                                if (senderName.equals(me)) { // 내가 보낸거였으면 나 : 이렇게 바꿔주기
+                                    chatMsg = "나: " + body;
+                                } else {
+                                    chatMsg = "[" + senderName + "] " + body;
+                                }
+                            }
+                        }
+
+                        //roomId에 해당하는 방만 찾아서 append
+                        ChatRoom room = roomMap.get(roomId);
+                        if (room != null) {
+                            room.appendMessage(chatMsg);
+                        }
                     }
 
-
-
                 } catch (IOException e) {
-                    System.out.println("[ListenNetwork] 예외 발생, 스레드 종료");
                     e.printStackTrace();
                     try {
                         dos.close();
@@ -74,6 +132,7 @@ public class ClientNet {
             }
         }
     }
+
     // Server에게 network로 전송
     public void SendMessage(String msg) {
         try {
@@ -91,6 +150,25 @@ public class ClientNet {
             }
         }
     }
+    // 이 클라의 주인공, 즉 이름 얻기
+    public String getUsername() {
+        return me;
+    }
+    // ChatPanel에서 클릭하면 채팅방이 다시 열리게 ( 창을 닫았을 경우 )
+    public void openRoom(String roomId) {
+        ChatRoom room = roomMap.get(roomId);
+
+        if (room == null) {
+            // (이 경우는 거의 없겠지만 안전하게)
+            room = new ChatRoom(roomId, this);
+            roomMap.put(roomId, room);
+        }
+
+        room.setVisible(true);
+        room.toFront();
+        room.requestFocus();
+    }
+
 }
 
 

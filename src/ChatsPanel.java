@@ -7,12 +7,12 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class ChatsPanel extends JPanel implements TabView {
 
     private DefaultListModel<String> model = new DefaultListModel<>();
     private JList<String> chatList = new JList<>(model);
     private FriendsPanel friendsPanel; // 유저 리스트 패널에서 프렌즈리스트 가져올거임
+    private ClientNet clientNet;
 
     public ChatsPanel() {
 
@@ -20,9 +20,7 @@ public class ChatsPanel extends JPanel implements TabView {
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);   // 전체 흰색
 
-
-        // 1) 상단 타이틀  =======================
-
+        // 상단 타이틀  =======================
         JPanel topArea = new JPanel();
         topArea.setLayout(new BoxLayout(topArea, BoxLayout.Y_AXIS));
         topArea.setBackground(Color.WHITE);
@@ -39,36 +37,41 @@ public class ChatsPanel extends JPanel implements TabView {
         btnNewChat.setFocusPainted(false);
         btnNewChat.setMargin(new Insets(2, 8, 2, 8));
 
-        // ➕ 버튼 누를 때 기능
+        // 채팅방 생성 "➕ 버튼 누를 때
         btnNewChat.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
 
-                // 1) 현재 접속자 목록 (일단 예시, 나중에 실제로 가져오면 됨)
-                String[] onlineUsers = { "손채림", "박소연", "아무개" };
-                // TODO: 나중에는 FriendsPanel이나 서버에서 실제 접속자 리스트 받아와서 쓰기
+                // 현재 접속자 목록을 프렌즈패널에서 가져오기 빌리기?
+                String[] chatUsers = friendsPanel.getFriendsList(); // <- 메서드 이름 맞게
 
-                JFrame friendsFrame = new JFrame();
-                friendsFrame.setSize(200, 250);
+                JFrame friendsFrame = new JFrame("대화 상대 추가");
+                friendsFrame.setSize(250, 300);
                 friendsFrame.setLayout(new BorderLayout());
+                friendsFrame.setLocationRelativeTo(ChatsPanel.this);
 
                 JLabel chatTitle = new JLabel("대화 상대 추가");
                 chatTitle.setFont(new Font("Dialog", Font.BOLD, 15));
-                //음 이거 올려야 하는데
 
                 // 유저 선택 패널
                 JPanel centerPanel = new JPanel();
                 centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
                 centerPanel.setBackground(Color.WHITE);
                 centerPanel.add(chatTitle);
+                centerPanel.add(Box.createVerticalStrut(8));
 
                 List<JCheckBox> checkBoxes = new ArrayList<JCheckBox>();
+                // 체크박스 형태로 유저 이름 모아두기
+                for (int i = 0; i < chatUsers.length; i++) { // 가져온?빌린? 명단으로 체크박스 만들기
+                    String name = chatUsers[i];
+                    if (name == null) continue;
+                    String trimmed = name.trim();
+                    if (trimmed.isEmpty()) continue;
 
-                for (int i = 0; i < onlineUsers.length; i++) {
-                    String name = onlineUsers[i];
-                    JCheckBox cb = new JCheckBox(name);
-                    cb.setBackground(Color.WHITE);
-                    checkBoxes.add(cb);
-                    centerPanel.add(cb);
+                    JCheckBox box = new JCheckBox(trimmed);
+                    box.setBackground(Color.WHITE);
+
+                    checkBoxes.add(box);   // 데이터 모아두기
+                    centerPanel.add(box);  // 이제 저 리스트를 GUI에 붙이기
                 }
 
                 JScrollPane scroll = new JScrollPane(centerPanel);
@@ -77,17 +80,14 @@ public class ChatsPanel extends JPanel implements TabView {
 
                 friendsFrame.add(scroll, BorderLayout.CENTER);
 
-                // 4) 아래 확인 / 취소 버튼
+                // 아래 확인 / 취소 버튼 -----------------------
                 JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
                 JButton btnCancel = new JButton("취소");
                 JButton btnOk = new JButton("확인");
 
                 bottomPanel.add(btnCancel);
                 bottomPanel.add(btnOk);
-
                 friendsFrame.add(bottomPanel, BorderLayout.SOUTH);
-
-                // 5) 버튼 이벤트
 
                 // 취소: 그냥 창 닫기
                 btnCancel.addActionListener(new ActionListener() {
@@ -96,36 +96,40 @@ public class ChatsPanel extends JPanel implements TabView {
                     }
                 });
 
-                // 확인: 체크된 유저들 모아서 방 만들기 + 대화창 띄우기
+                // 확인: 체크된 유저들 모아서 방 만들기
                 btnOk.addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e) {
 
-                        java.util.List<String> selected = new java.util.ArrayList<String>();
-
+                        List<String> selectedUsers = new ArrayList<>(); //선택된 유저 이름 담기
                         for (int i = 0; i < checkBoxes.size(); i++) {
                             JCheckBox cb = checkBoxes.get(i);
-                            if (cb.isSelected()) {
-                                selected.add(cb.getText());
+                            if (cb.isSelected()) {               //  여기서 선택 여부 확인
+                                selectedUsers.add(cb.getText());
                             }
                         }
-
-                        if (selected.isEmpty()) {
+                        if (selectedUsers.isEmpty()) {
+                            //선택 안 할시 경고 문구 띄우기
                             JOptionPane.showMessageDialog(friendsFrame, "한 명 이상 선택해 주세요.");
                             return;
                         }
-
-                        // 방 생성 + 채팅창 열기
-                        //createChatWindow(selected);
-
+                        if (clientNet != null) {
+                            String me = clientNet.getUsername();
+                            if (!selectedUsers.contains(me)) {
+                                selectedUsers.add(me);
+                            }
+                        }
+                        // 일단 셀렉된 리스트 가지고 하나의 문자열 -> 방 제목 만들기 "손채림,박소연"
+                        String roomId = String.join(",", selectedUsers);
+                        // Chats 탭 리스트에 방 추가하기 ( GUI )
+                        addRoom(roomId);
+                        // 셀렉된 명단 리스트를 서버에게 보내기 ( 클라send 이용해서 )
+                        clientNet.SendMessage("/openRoom " + roomId); // 여기까지 하다가 말음이제서벅 ㅏ처리할차례
                         friendsFrame.dispose();
                     }
                 });
-
                 friendsFrame.setVisible(true);
-
             }
         });
-
 
         titleRow.add(lblTitle, BorderLayout.WEST);
         titleRow.add(btnNewChat, BorderLayout.EAST);
@@ -139,24 +143,34 @@ public class ChatsPanel extends JPanel implements TabView {
         chatList.setFixedCellHeight(44);
         chatList.setFont(new Font("Dialog", Font.PLAIN, 14));
         chatList.setBackground(Color.WHITE);
+        chatList.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {  // 더블클릭하기
+                    String roomId = chatList.getSelectedValue();
+                    if (roomId != null && clientNet != null) {
+                        clientNet.openRoom(roomId);
+                    }
+                }
+            }
+        });
 
-        JScrollPane scroll = new JScrollPane(chatList);
+
+        JScrollPane scrollChat = new JScrollPane(chatList);
 
         // 스크롤
-        scroll.setBorder(null);
-        scroll.setBackground(Color.WHITE);
-        scroll.getViewport().setBackground(Color.WHITE);
+        scrollChat.setBorder(null);
+        scrollChat.setBackground(Color.WHITE);
+        scrollChat.getViewport().setBackground(Color.WHITE);
 
         // 회색 안 보이게, 흰색 패널로 한 번 감싸고 여백 주기
         JPanel centerWrapper = new JPanel(new BorderLayout());
-        centerWrapper.setBackground(Color.WHITE);                     // ★ 여기도 흰색
-        centerWrapper.setBorder(new EmptyBorder(5, 15, 15, 15));      // 바깥 여백
-        centerWrapper.add(scroll, BorderLayout.CENTER);
+        centerWrapper.setBackground(Color.WHITE);
+        centerWrapper.setBorder(new EmptyBorder(5, 15, 15, 15));
+        centerWrapper.add(scrollChat, BorderLayout.CENTER);
 
         add(centerWrapper, BorderLayout.CENTER);
-
     }
-
 
     @Override
     public String getTitle() {
@@ -177,5 +191,14 @@ public class ChatsPanel extends JPanel implements TabView {
         if (!model.contains(name)) {
             model.addElement(name);
         }
+    }
+
+    public void setClientNet(ClientNet clientNet) {
+        this.clientNet = clientNet;
+    }
+
+    // FriendsPanel을 주입하는 메소드
+    public void setFriendsList(FriendsPanel friendsPanel) {
+        this.friendsPanel = friendsPanel;
     }
 }

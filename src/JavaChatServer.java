@@ -45,7 +45,7 @@ public class JavaChatServer {
             log("Server start error: " + e.getMessage());
         }
     }
-    
+
     // 새로운 참가자 accept() 하고 user thread를 새로 생성한다. 한번 만들어서 계속 사용하는 스레드
     class AcceptServer extends Thread {
         public void run() {
@@ -67,10 +67,10 @@ public class JavaChatServer {
     }
 
     class UserService extends Thread {
-    	//참고로 서버와 클라이언트 사이의 1:1 채팅이 아니기 때문에 
+    	//참고로 서버와 클라이언트 사이의 1:1 채팅이 아니기 때문에
     	//(서버에서는) 서버가 스스로 메시지를 먼저 보낼 일이 없으니(한 클라이언트한테 받은 메시지를 다른 클라이언트들한테 전달만 하면 됩니다)
     	//따라서 run() 안에 작성되어 있는 '보내는 기능을 수행하는 코드'와 '받는 기능을 수행하는 코드'를 이 서버에서는 스레드로 분리할 필요가 없음
-    	
+
         private InputStream is;
         private OutputStream os;
         private DataInputStream dis;
@@ -80,7 +80,7 @@ public class JavaChatServer {
         private String UserName = "";
 
         public UserService(Socket client_socket) {
-            // 매개변수로 넘어온 소켓 객체 저장 
+            // 매개변수로 넘어온 소켓 객체 저장
             this.client_socket = client_socket;
             this.user_vc = UserVec;
             try {
@@ -124,7 +124,7 @@ public class JavaChatServer {
         	WriteAll(br_msg); // 다른 User들에게 전송  [추가]
 
         }
-        
+
         // 클라이언트로 메시지 전송
         public void WriteOne(String msg) {
             try {
@@ -141,9 +141,9 @@ public class JavaChatServer {
                 logout();
             }
         }
-        
+
         //모든 다중 클라이언트에게 순차적으로 채팅 메시지 전달
-        public void WriteAll(String str) {  
+        public void WriteAll(String str) {
             for (int i = 0; i < user_vc.size(); i++) {
             	UserService user = user_vc.get(i);     // get(i) 메소드는 user_vc 컬렉션의 i번째 요소를 반환
                 user.WriteOne(str);
@@ -151,64 +151,55 @@ public class JavaChatServer {
         }
 
         public void run() {
-        	// dis.readUTF()에서 대기하다가 메시지가 들어오면 -> Write All로 전체 접속한 사용자한테 메시지 전송(단톡방), 이걸 클라이언트별로 무한히 실행
-        	// 추가적으로 지금은 dis.readUTF()에서 예외가 발생하면 '예외처리에 의해 정상적으로 스레드가 종료하게 작성'되었으나
-        	// '/exit'가 들어와도 종료하게 코드를 추가하면 더 완성도 있는 코드가 됩니다.
-        	// 지금은 다양한 사용자 프로토콜(/list, /to, /exit 등)을 정의하고 있지 않지만 추후 /exit 프로토콜 등의 정의시 추가
-
             while (true) {
                 try {
-                    String msg = dis.readUTF(); 
-                    msg = msg.trim();   //msg를 가져와 trim 메소드를 사용하여 앞뒤의 공백을 제거
-                    //AppendText(msg); // server 화면에 출력
-                    
-                    String[] args = msg.split(" "); // 명령어와 매개변수 분리
-                    
-                    // 명령어 처리
-                    switch (args[1]) {
-                        case "/exit": // 종료 명령
-                            logout(); // 사용자 로그아웃 처리
-                            return; // 스레드 종료
+                    String msg = dis.readUTF();
+                    msg = msg.trim();
+                    // 예:
+                    // "/openRoom 아무개,손채림,박소연"
+                    // "/roomMsg 아무개,손채림,박소연 안녕~ 난 채림이야"
+                    String[] args = msg.split(" ",3); //
+                    // [0] 이 명령어 프로토콜이고
+                    String cmd =  args[0];
+                    // [1]가 룸 아이디
+                    // [2]이 이 뒤로 오는 나머지 문자열 하나로 덩어리로 받겠다
+                    if (cmd.equals("/openRoom")) {
+                        String roomId = args[1]; // 채팅방 소속인들? 무튼 "아무개,손채림,박소연"
+                        String[] memberNames = roomId.split(",");
 
-                        case "/list": // 접속자 목록 보기
-                            WriteOne("**현재 사용자 목록**\n");
-                            for (int i = 0; i < user_vc.size(); i++) {
-                                UserService user = user_vc.get(i); // 명시적인 인덱스 접근
-                                WriteOne("- " + user.UserName + "\n");
+                        for (int i = 0; i < user_vc.size(); i++) { // 일단 유저벡터에 순서대로 들어와있는 "전체" 클라 돌기
+                            UserService user = user_vc.get(i);
+                            if (user.UserName == null) {
+                                continue;
                             }
-                            break;
+                            // 그리고 두번쨰로 이름 검사하기
+                            for (int j = 0; j < memberNames.length; j++) {
+                                String name = memberNames[j].trim();
 
-                        case "/to": // 귓속말 처리, [홍길동] /to 신데렐라 안녕~ 반갑다. ^^\n
-                            if (args.length < 4) {
-                                WriteOne("사용법: /to [username] [message]\n");
-                                break;
-                            }
-                            String targetUser = args[2];
-                            String privateMessage = "";
-                            for (int i = 3; i < args.length; i++) {
-                                privateMessage += args[i];
-                                if (i < args.length - 1) privateMessage += " ";
-                            }
-                            boolean found = false;
-                            for (int i = 0; i < user_vc.size(); i++) {
-                                UserService user = user_vc.get(i); // 명시적인 인덱스 접근
-                                if (user.UserName.equals(targetUser)) {
-                                    user.WriteOne("[" + UserName + "님의 귓속말] " + privateMessage + "\n");
-                                    WriteOne("[" + UserName + "님의 귓속말] " + privateMessage + "\n");
-                                    found = true;
+                                // 동일 인물 나왔으면 이제 메시지 전송
+                                if (user.UserName.equals(name)) {
+                                    // 이 유저는 이 방 멤버 → 방 열라고! 신호 주는거 그러면 GUI 채팅방 각자 만듦
+                                    user.WriteOne("/openRoom " + roomId); //
                                     break;
                                 }
                             }
-                            if (!found) {
-                                WriteOne("사용자 " + targetUser + "를 찾을 수 없습니다.\n");
-                            }
-                            break;
-
-                        default: // 일반 메시지 처리
-                            WriteAll(msg + "\n"); // 모든 사용자에게 전송
-                            break;
+                        }
                     }
-                    
+                    else if (cmd.equals("/roomMsg")) {
+                        // /roomMsg 아무개,손채림,박소연 안녕 난 채림이야
+
+                        if (args.length < 3) {
+                            WriteOne("사용법: /roomMsg [roomId] [message]\n");
+                            continue;
+                        }
+                        String roomId = args[1]; //채팅방 유저
+                        String body = args[2];   // 클라가 보낸 메세지
+
+                        // 이 서버 스레드의 UserName이 곧 보낸 사람
+                        String sendText = "[" + UserName + "] " + body; // GUI창에 올라갈 메시지라고 생각하면 됨
+                        sendToRoom(roomId, sendText);
+                    }
+
                 } catch (IOException e) {
                    // AppendText("dis.readUTF() error");
                     try {
@@ -216,14 +207,35 @@ public class JavaChatServer {
                         dis.close();
                         client_socket.close();
                         logout();
-                        break;  
+                        break;
                     } catch (Exception ee) {
                         break;
-                    } 
+                    }
                 }
             }
         }
-        
+
+        public void sendToRoom(String roomId, String sendText) {
+            String[] memberNames = roomId.split(","); // 위 오픈룸과 똑같은 로직
+
+            for (int i = 0; i < user_vc.size(); i++) {
+                UserService user = user_vc.get(i);
+                if (user.UserName == null) {
+                    continue;
+                }
+                for (int j = 0; j < memberNames.length; j++) {
+                    String name = memberNames[j].trim();
+                    if (name.isEmpty()) {
+                        continue;
+                    }
+                    if (user.UserName.equals(name)) {
+                        user.WriteOne("/roomMsg " + roomId + " " + sendText);
+                        break;
+                    }
+                }
+            }
+        }
+
     }
 }
 
