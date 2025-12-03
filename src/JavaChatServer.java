@@ -46,10 +46,14 @@ public class JavaChatServer {
         }
     }
 
-    // 새로운 참가자 accept() 하고 user thread를 새로 생성한다. 한번 만들어서 계속 사용하는 스레드
+    // -------------------------------------------------------------
+    // [1] AcceptServer
+    // - 서버소켓.accept()를 계속 돌면서
+    //   새로 들어온 클라이언트마다 UserService 스레드를 하나씩 생성
+    // --------------------------------------------------------------
     class AcceptServer extends Thread {
         public void run() {
-            while (true) { // 사용자 접속을 계속해서 받기 위해 while문
+            while (true) {
                 try {
                     client_socket = socket.accept(); // accept가 일어나기 전까지는 무한 대기중
                     // User 당 하나씩 전용 Thread 생성
@@ -66,10 +70,14 @@ public class JavaChatServer {
         }
     }
 
+    // ----------------------------------------------------------------
+    // [2] UserService
+    // - 클라이언트 1명당 생성되는 스레드
+    // - 이 스레드에서 그 클라이언트가 보낸 메시지를 계속 읽으면서
+    //   프로토콜(/openRoom, /roomMsg 등)을 처리
+    // -----------------------------------------------------------------
+
     class UserService extends Thread {
-    	//참고로 서버와 클라이언트 사이의 1:1 채팅이 아니기 때문에
-    	//(서버에서는) 서버가 스스로 메시지를 먼저 보낼 일이 없으니(한 클라이언트한테 받은 메시지를 다른 클라이언트들한테 전달만 하면 됩니다)
-    	//따라서 run() 안에 작성되어 있는 '보내는 기능을 수행하는 코드'와 '받는 기능을 수행하는 코드'를 이 서버에서는 스레드로 분리할 필요가 없음
 
         private InputStream is;
         private OutputStream os;
@@ -105,8 +113,9 @@ public class JavaChatServer {
             }
         }
 
+        // 현재 접속중인 모든 유저 이름을 "유저1,유저2,..." 문자열로 바꿈
         public String getCurrentUserList() {
-            StringBuilder builder = new StringBuilder(); // 모드 유저이름 하나의 문자열로 만들어주는 클래스
+            StringBuilder builder = new StringBuilder();
             for(int i = 0; i < user_vc.size(); i++){
                 UserService user = user_vc.get(i);
                 if(user.UserName == null || user.UserName.isEmpty()){
@@ -130,7 +139,6 @@ public class JavaChatServer {
             try {
                 dos.writeUTF(msg);
             } catch (IOException e) {
-               // AppendText("dos.write() error");
                 try {
                     dos.close();
                     dis.close();
@@ -149,7 +157,10 @@ public class JavaChatServer {
                 user.WriteOne(str);
             }
         }
-
+        // -------------------------------------------------------------
+        // [run()]: 클라이언트에서 오는 메시지를 계속 읽으면서
+        //         /openRoom, /roomMsg 등 각종 프로토콜 처리
+        // -------------------------------------------------------------
         public void run() {
             while (true) {
                 try {
@@ -160,13 +171,13 @@ public class JavaChatServer {
                     // "/roomMsg 아무개,손채림,박소연 안녕~ 난 채림이야"
                     String[] args = msg.split(" ",3); //
                     // [0] 이 명령어 프로토콜이고
-                    String cmd =  args[0];
                     // [1]가 룸 아이디
                     // [2]이 이 뒤로 오는 나머지 문자열 하나로 덩어리로 받겠다
+                    String cmd =  args[0];
                     if (cmd.equals("/openRoom")) {
                         String roomId = args[1]; // 채팅방 소속인들? 무튼 "아무개,손채림,박소연"
                         String[] memberNames = roomId.split(",");
-
+                        // 전체 접속자(user_vc)를 돌면서
                         for (int i = 0; i < user_vc.size(); i++) { // 일단 유저벡터에 순서대로 들어와있는 "전체" 클라 돌기
                             UserService user = user_vc.get(i);
                             if (user.UserName == null) {
@@ -176,7 +187,7 @@ public class JavaChatServer {
                             for (int j = 0; j < memberNames.length; j++) {
                                 String name = memberNames[j].trim();
 
-                                // 동일 인물 나왔으면 이제 메시지 전송
+                                // 동일 인물 나왔으면 이제 그 유저에게 메시지 전송
                                 if (user.UserName.equals(name)) {
                                     // 이 유저는 이 방 멤버 → 방 열라고! 신호 주는거 그러면 GUI 채팅방 각자 만듦
                                     user.WriteOne("/openRoom " + roomId); //
@@ -195,7 +206,7 @@ public class JavaChatServer {
                         String roomId = args[1]; //채팅방 유저
                         String body = args[2];   // 클라가 보낸 메세지
 
-                        // 이 서버 스레드의 UserName이 곧 보낸 사람
+                        // 이 유저서비스 스레드의 UserName이 곧 보낸 사람이니
                         String sendText = "[" + UserName + "] " + body; // GUI창에 올라갈 메시지라고 생각하면 됨
                         sendToRoom(roomId, sendText);
                     }
@@ -214,20 +225,26 @@ public class JavaChatServer {
                 }
             }
         }
-
+        // -------------------------------------------------------------
+        // [sendToRoom]
+        // - roomId에 해당하는 사람들에게만
+        //   "/roomMsg roomId [보낸이] 내용..." 형식으로 메시지 전송
+        // ------------------------------------------------------------
         public void sendToRoom(String roomId, String sendText) {
-            String[] memberNames = roomId.split(","); // 위 오픈룸과 똑같은 로직
-
+            String[] memberNames = roomId.split(",");
+            // 전체 접속자(user_vc)를 돌면서
             for (int i = 0; i < user_vc.size(); i++) {
                 UserService user = user_vc.get(i);
                 if (user.UserName == null) {
                     continue;
                 }
+                // 이 유저가 roomId에 포함된 멤버인지 검사
                 for (int j = 0; j < memberNames.length; j++) {
                     String name = memberNames[j].trim();
                     if (name.isEmpty()) {
                         continue;
                     }
+                    // 방 멤버가 맞다면 그 유저에게만 /roomMsg 전송
                     if (user.UserName.equals(name)) {
                         user.WriteOne("/roomMsg " + roomId + " " + sendText);
                         break;

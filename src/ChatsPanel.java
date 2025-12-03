@@ -37,7 +37,7 @@ public class ChatsPanel extends JPanel implements TabView {
         btnNewChat.setFocusPainted(false);
         btnNewChat.setMargin(new Insets(2, 8, 2, 8));
 
-        // 채팅방 생성 "➕ 버튼 누를 때
+        // 채팅방 생성 + 버튼 누를 때
         btnNewChat.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
 
@@ -52,7 +52,7 @@ public class ChatsPanel extends JPanel implements TabView {
                 JLabel chatTitle = new JLabel("대화 상대 추가");
                 chatTitle.setFont(new Font("Dialog", Font.BOLD, 15));
 
-                // 유저 선택 패널
+                // 유저 선택 패널 =============================== 채팅방 개설하기 위한 전 단계
                 JPanel centerPanel = new JPanel();
                 centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
                 centerPanel.setBackground(Color.WHITE);
@@ -61,7 +61,8 @@ public class ChatsPanel extends JPanel implements TabView {
 
                 List<JCheckBox> checkBoxes = new ArrayList<JCheckBox>();
                 // 체크박스 형태로 유저 이름 모아두기
-                for (int i = 0; i < chatUsers.length; i++) { // 가져온?빌린? 명단으로 체크박스 만들기
+
+                for (int i = 0; i < chatUsers.length; i++) { // 가져온 명단으로 체크박스 만들기
                     String name = chatUsers[i];
                     if (name == null) continue;
                     String trimmed = name.trim();
@@ -123,7 +124,7 @@ public class ChatsPanel extends JPanel implements TabView {
                         // Chats 탭 리스트에 방 추가하기 ( GUI )
                         addRoom(roomId);
                         // 셀렉된 명단 리스트를 서버에게 보내기 ( 클라send 이용해서 )
-                        clientNet.SendMessage("/openRoom " + roomId); // 여기까지 하다가 말음이제서벅 ㅏ처리할차례
+                        clientNet.SendMessage("/openRoom " + roomId);
                         friendsFrame.dispose();
                     }
                 });
