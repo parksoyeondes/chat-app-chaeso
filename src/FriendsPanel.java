@@ -6,6 +6,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FriendsPanel extends JPanel implements TabView {
 
@@ -19,6 +21,12 @@ public class FriendsPanel extends JPanel implements TabView {
     private JLabel profileImageLabel;
     private JLabel lblMyName;
 
+    // 친구들의 "내가 정한 이름" 저장용 (실제 서버 이름 → 내가 붙인 닉네임)
+    private final Map<String, String> friendNicknameMap = new HashMap<>();
+
+    // 친구 프로필용 기본 아이콘 (모든 친구들 같은 이미지)
+    private ImageIcon defaultFriendIcon;
+
     public FriendsPanel(String myName) {
         this.myName = myName;
         // 내 프로필 기본값 설정 (필요하면 기본 이미지 경로 수정)
@@ -28,6 +36,9 @@ public class FriendsPanel extends JPanel implements TabView {
                 "/icons/tomato_face.png",
                 "/icons/profile_bg_default.png"
         );
+
+        // 친구들 공통 프로필 아이콘 (조금 작게)
+        defaultFriendIcon = loadProfileIconSimple("/icons/tomato_face.png", 40, 32);
 
         // 패널 기본
         setLayout(new BorderLayout());
@@ -99,8 +110,41 @@ public class FriendsPanel extends JPanel implements TabView {
 
         // ===== 친구 목록 =====
         friendList.setFixedCellHeight(40);
-        friendList.setFont(new Font("Dialog", Font.PLAIN, 14));
         friendList.setBackground(Color.WHITE);
+
+        // 친구 한 줄당 프로필 이미지 + 이름/닉네임 보여주는 렌더러 설정
+        friendList.setCellRenderer(new FriendCellRenderer());
+
+        // 친구 항목 더블클릭하면 "표시 이름" 수정 가능
+        friendList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) { // 더블클릭
+                    int index = friendList.locationToIndex(e.getPoint());
+                    if (index >= 0) {
+                        String realName = model.getElementAt(index); // 서버에 있는 실제 이름
+                        String currentNick = friendNicknameMap.getOrDefault(realName, realName);
+
+                        String input = JOptionPane.showInputDialog(
+                                FriendsPanel.this,
+                                realName + " 의 표시 이름을 입력하세요",
+                                currentNick
+                        );
+
+                        if (input != null) { // 취소 안 눌렀으면
+                            String trimmed = input.trim();
+                            if (trimmed.isEmpty()) {
+                                // 빈 문자열이면 별칭 제거 → 다시 원래 이름으로 표시
+                                friendNicknameMap.remove(realName);
+                            } else {
+                                friendNicknameMap.put(realName, trimmed);
+                            }
+                            friendList.repaint();
+                        }
+                    }
+                }
+            }
+        });
 
         JScrollPane scroll = new JScrollPane(friendList);
         scroll.setBorder(new EmptyBorder(5, 15, 15, 15));
@@ -154,47 +198,98 @@ public class FriendsPanel extends JPanel implements TabView {
     @Override public JComponent getComponent() { return this; }
 
     // ===== 목록 조작 메서드 =====
-    public void setUserList(String [] names) {
+    public void setUserList(String[] names) {
         model.clear();              // 기존 목록 싹 지우고
         for (int i = 0; i < names.length; i++) {
-            if (names[i] == null) {
-                continue;
-            }
-            String trimmed = names[i].trim();
+            if (names[i] == null) continue;
 
-            if (trimmed.isEmpty())
-                continue;   // 공백/빈 문자열이면 무시
+            String trimmed = names[i].trim();
+            if (trimmed.isEmpty()) continue;   // 공백/빈 문자열이면 무시
+
             model.addElement(trimmed);
         }
     }
 
     public void clearFriends() {
         model.clear();
+        friendNicknameMap.clear();
     }
 
-    //새로 들어온 유저 집어넣기
+    // 새로 들어온 유저 집어넣기
     public void addUser(String name) {
-        if (name == null)
-            return;
+        if (name == null) return;
         String trimmed = name.trim(); // 혹시 모를 공백 제거
-        if (trimmed.isEmpty())
-            return;
+        if (trimmed.isEmpty()) return;
 
-        // 이미 있는 이름이면 중복 추가 안 하기 -> 근데 새로 로그인해서 들어오면 어차피 이 모델에 없으니까 넣어지게 됨
+        // 이미 있는 이름이면 중복 추가 안 하기
         if (!model.contains(trimmed)) {
             model.addElement(trimmed);
         }
     }
 
-
-    // 유저 목록 반환하기
-    public String [] getFriendsList(){
-        //일단 받을 자리 만들고
+    // 유저 목록 반환하기 (실제 서버 이름)
+    public String[] getFriendsList() {
         int size = model.getSize();
-        String usersForChat [] = new String[size];
-        for(int i = 0; i < model.size(); i++){
+        String[] usersForChat = new String[size];
+        for (int i = 0; i < model.size(); i++) {
             usersForChat[i] = model.getElementAt(i);
         }
         return usersForChat;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // JList 한 줄을 그려주는 렌더러 (프로필 이미지 + 닉네임 표시)
+    // ─────────────────────────────────────────────────────────────
+    private class FriendCellRenderer extends JPanel implements ListCellRenderer<String> {
+
+        private JLabel iconLabel = new JLabel();
+        private JLabel nameLabel = new JLabel();
+
+        public FriendCellRenderer() {
+            setLayout(new BorderLayout());
+            setOpaque(true);
+
+            iconLabel.setPreferredSize(new Dimension(40, 40));
+            iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+            nameLabel.setFont(new Font("Dialog", Font.PLAIN, 14));
+
+            add(iconLabel, BorderLayout.WEST);
+            add(nameLabel, BorderLayout.CENTER);
+
+            setBorder(new EmptyBorder(5, 5, 5, 5));
+        }
+
+        @Override
+        public Component getListCellRendererComponent(
+                JList<? extends String> list,
+                String value,
+                int index,
+                boolean isSelected,
+                boolean cellHasFocus
+        ) {
+            // value = 실제 서버에서 받은 이름
+            String realName = value;
+            String displayName = friendNicknameMap.getOrDefault(realName, realName);
+
+            // 프로필 아이콘 (모든 친구 동일)
+            if (defaultFriendIcon != null) {
+                iconLabel.setIcon(defaultFriendIcon);
+                iconLabel.setText("");
+            } else {
+                iconLabel.setIcon(null);
+                iconLabel.setText("🙂");
+            }
+
+            nameLabel.setText(displayName);
+
+            if (isSelected) {
+                setBackground(new Color(230, 230, 230));
+            } else {
+                setBackground(Color.WHITE);
+            }
+
+            return this;
+        }
     }
 }
