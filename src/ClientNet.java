@@ -85,8 +85,7 @@ public class ClientNet {
                         room.setVisible(true);
 
                     } else if (cmd.equals("/roomMsg")) {
-                        // /roomMsg는 "내용"이 길 수 있으니까 다시 3조각으로 split
-                        // 형식: /roomMsg roomId 메시지...
+                        // 형식: /roomMsg roomId [이름] 메시지...
                         String[] parts = msg.split(" ", 3);
                         if (parts.length < 3) {
                             // 형식 이상하면 무시
@@ -95,26 +94,22 @@ public class ClientNet {
                         String roomId  = parts[1]; // "손채림,박소연"
                         String chatMsg = parts[2]; // "[채림] 안녕 난 채림이야"
 
+                        String senderName = null;
+                        String body = chatMsg;
+
                         //  [이름] 떼어내기
                         if (chatMsg.startsWith("[")) {
                             int idx = chatMsg.indexOf("]");
                             if (idx > 1) {
-                                String senderName = chatMsg.substring(1, idx); // [] 안
-                                String body = chatMsg.substring(idx + 1).trim(); // 나머지
-
-                                // 보낸 이가 나인지 비교
-                                if (senderName.equals(me)) { // 내가 보낸거였으면 나 : 이렇게 바꿔주기
-                                    chatMsg = "나: " + body;
-                                } else {
-                                    chatMsg = "[" + senderName + "] " + body;
-                                }
+                                senderName = chatMsg.substring(1, idx);        // [] 안
+                                body = chatMsg.substring(idx + 1).trim();      // 나머지
                             }
                         }
 
                         //roomId에 해당하는 방만 찾아서 append
                         ChatRoom room = roomMap.get(roomId);
                         if (room != null) {
-                            room.appendMessage(chatMsg);
+                            room.appendMessage(senderName, body);   // <-- 문자열 아니라 "이름 + 내용" 전달
                         }
                     }
 
