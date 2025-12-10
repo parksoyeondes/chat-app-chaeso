@@ -34,7 +34,7 @@ public class ChatRoom extends JFrame {
         // 이모티콘 아이콘 크기
         int EMOJI_SIZE = 60;
 
-        // 이모지 코드에 대응되는 이미지 등록
+        // 이모지 코드에 대응되는 이미지 등록~
         emojiMap.put(":emoj1:", loadEmoji("/icons/emoj1.png", EMOJI_SIZE));
         emojiMap.put(":emoj2:", loadEmoji("/icons/emoj2.png", EMOJI_SIZE));
         emojiMap.put(":emoj3:", loadEmoji("/icons/emoj3.png", EMOJI_SIZE));
