@@ -53,12 +53,11 @@ public class ClientNet {
     }
 
 
-    //서버로 문자열 한 줄을 전송하는 메서드
+    // ------------서버로부터 오는 걸 받는 수신 스레드 ------------------
     class ListenNetwork extends Thread {
         public void run() {
             while (true) {
                 try {
-                    // 서버에서 한 줄(UTF 문자열) 수신
                     String msg = dis.readUTF();
 
                     // 1차 파싱: 명령어 부분(cmd)와 나머지(rest) 분리
@@ -71,28 +70,22 @@ public class ClientNet {
                     String cmd = msgs[0];                     // 명령어 부분
                     String rest = (msgs.length > 1) ? msgs[1] : ""; // 뒤에 붙은 나머지 문자열
 
-                    // ------------------------------------
-                    // 1) 전체 유저 목록 받는 경우
+                    // --------------   전체 유저 목록 받는 경우 --------------
                     //    형식: /userName 유저1,유저2,유저3
-                    // ------------------------------------
                     if (cmd.equals("/userName")) {
                         // rest: "손채림,박소연,아무개"
                         String[] names = rest.split(",");
                         friendsPanel.setUserList(names);
 
-                        // ------------------------------------
-                        // 2) 새로운 유저 한 명이 로그인한 경우
-                        //    형식: /newUser 유저이름
-                        // ------------------------------------
+                        //  -------------- 새로운 유저 한 명이 로그인한 경우 --------------
+
                     } else if (cmd.equals("/newUser")) {
                         String newUser = rest;
                         friendsPanel.addUser(newUser);
 
-                        // ------------------------------------
-                        // 3) 채팅방을 열라는 명령
+                        // ----------------------- 채팅방을 열라는 명령 -----------------------
                         //    형식: /openRoom 방아이디
                         //    방아이디 예: "손채림,박소연"
-                        // ------------------------------------
                     } else if (cmd.equals("/openRoom")) {
                         String roomId = rest;
 
@@ -115,10 +108,8 @@ public class ClientNet {
                         }
                         room.setVisible(true);
 
-                        // ------------------------------------
-                        // 4) 채팅방 안의 메시지 전달
+                        //  ------------------------ 채팅방 안의 메시지 전달 -----------------------
                         //    형식: /roomMsg 방아이디 [보낸이] 메시지내용
-                        // ------------------------------------
                     } else if (cmd.equals("/roomMsg")) {
                         // 여기서는 원문 전체에서 다시 3부분으로 나눔:
                         //   parts[0] = "/roomMsg"
@@ -149,6 +140,57 @@ public class ClientNet {
                         if (room != null) {
                             // 이름과 메시지 내용을 따로 넘겨서 말풍선으로 표시
                             room.appendMessage(senderName, body);
+                        }
+                    }
+                    // ---------------------------- 행맨 게임 시작 --------------
+                    else if (cmd.equals("/hangStart")) {
+                        // rest = "roomId wordIdx themeIdx"
+                        String[] parts = rest.split(" ");
+                        if (parts.length < 3) {
+                            continue;
+                        }
+
+                        String roomId = parts[0];
+                        int wordIdx;
+                        int themeIdx;
+                        try {
+                            wordIdx  = Integer.parseInt(parts[1]);
+                            themeIdx = Integer.parseInt(parts[2]);
+                        } catch (NumberFormatException ex) {
+                            // 숫자 파싱 실패하면 무시
+                            continue;
+                        }
+
+                        ChatRoom room = roomMap.get(roomId);
+                        if (room != null) {
+                            // 이 방의 행맨창 열기 (아직 구현 wnd...)
+                            room.openHangman(wordIdx, themeIdx);
+                        }
+                    }
+                    // ----------------------- 행맨 게임 플레이 중 -----------------------
+                    else if (cmd.equals("/hangGuess")) {
+                        // rest = "roomId c"
+                        String[] parts = rest.split(" ");
+                        if (parts.length < 2) {
+                            continue;
+                        }
+
+                        String roomId = parts[0];
+                        char ch = parts[1].charAt(0);
+
+                        ChatRoom room = roomMap.get(roomId);
+                        if (room != null) {
+                            room.applyHangmanGuess(ch);
+                        }
+                    }
+                    // ------------------ 행맨 게임 끝 -------------------
+                    else if (cmd.equals("/hangEnd")) {
+                        // rest = "roomId"
+                        String roomId = rest.trim();
+
+                        ChatRoom room = roomMap.get(roomId);
+                        if (room != null) {
+                            room.closeHangman();
                         }
                     }
 

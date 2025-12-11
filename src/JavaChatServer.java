@@ -11,16 +11,8 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Vector;
+import java.util.Random;
 
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.SwingConstants;
-import javax.swing.border.EmptyBorder;
 
 import static java.rmi.server.LogStream.log;
 
@@ -196,6 +188,7 @@ public class JavaChatServer {
                             }
                         }
                     }
+                    // ------------------- 단톡방 내 메시지 -------------------
                     else if (cmd.equals("/roomMsg")) {
                         // /roomMsg 아무개,손채림,박소연 안녕 난 채림이야
 
@@ -210,9 +203,44 @@ public class JavaChatServer {
                         String sendText = "[" + UserName + "] " + body; // GUI창에 올라갈 메시지라고 생각하면 됨
                         sendToRoom(roomId, sendText);
                     }
+                    // -------------- 행맨 게임 프로토콜 ---------------
+
+                    else if (cmd.equals("/hangStart")) {
+                        // C -> S : /hangStart roomId
+                        if (args.length < 2) continue;
+                        String roomId = args[1];
+
+                        // 단어/테마 인덱스 서버에서 랜덤 결정
+                        Random r = new Random();
+                        int wordIdx  = r.nextInt(4); // WORDS.length == 4
+                        int themeIdx = 0;            // THEMES 하나뿐이면 0 고정
+
+                        // 그대로 방 전체에 뿌리기
+                        String send = "/hangStart " + roomId + " " + wordIdx + " " + themeIdx;
+                        sendRawToRoom(roomId, send);
+                    }
+
+                    else if (cmd.equals("/hangGuess")) {
+                        // C -> S : /hangGuess roomId c
+                        if (args.length < 3) continue;
+                        String roomId = args[1];
+                        String letter = args[2];
+
+                        String send = "/hangGuess " + roomId + " " + letter;
+                        sendRawToRoom(roomId, send);
+                    }
+
+                    else if (cmd.equals("/hangEnd")) {
+                        // C -> S : /hangEnd roomId
+                        if (args.length < 2) continue;
+                        String roomId = args[1];
+
+                        String send = "/hangEnd " + roomId;
+                        sendRawToRoom(roomId, send);
+                    }
+
 
                 } catch (IOException e) {
-                   // AppendText("dis.readUTF() error");
                     try {
                         dos.close();
                         dis.close();
@@ -252,6 +280,25 @@ public class JavaChatServer {
                 }
             }
         }
+        // 채팅(/roomMsg ...) 말고, 프로토콜을 그대로 방 멤버에게 보내고 싶을 때 사용
+        public void sendRawToRoom(String roomId, String msg) {
+            String[] memberNames = roomId.split(",");
+            for (int i = 0; i < user_vc.size(); i++) {
+                UserService user = user_vc.get(i);
+                if (user.UserName == null) continue;
+
+                for (int j = 0; j < memberNames.length; j++) {
+                    String name = memberNames[j].trim();
+                    if (name.isEmpty()) continue;
+
+                    if (user.UserName.equals(name)) {
+                        user.WriteOne(msg);   // ★ 그대로 보냄 ("/hangStart ..." 등)
+                        break;
+                    }
+                }
+            }
+        }
+
 
     }
 }

@@ -6,6 +6,14 @@ import java.awt.event.ActionListener;
 import java.util.Random;
 
 public class HangmanPanel extends JPanel {
+    // ===== 네트워크 모드용 리스너 =====
+    public interface HangmanNetListener {
+        void onLetterChosen(char ch);   // 내가 글자 선택함
+        void onGameEnd();               // 게임 끝내기(나가기)
+        void onRestartRequested();      // 재시작하기
+    }
+    private HangmanNetListener netListener;
+    private boolean networkMode = false;
 
     // ===== 게임 상태 =====
     private String[] WORDS  = { "parksoyeon", "sonchaerim", "seoyujin", "shinyoungseo" };
@@ -31,7 +39,18 @@ public class HangmanPanel extends JPanel {
     // 키보드 버튼 배열 (키보드 입력 연동용)
     private JButton[] letterButtons = new JButton[26];
 
+    // ----------------------------- 생성자 쪼개기 -------------------------------
     public HangmanPanel() {
+        this(null, false);   // 기본은 로컬 모드
+    }
+    public HangmanPanel(HangmanNetListener listener, boolean networkMode) {
+        this.netListener = listener;
+        this.networkMode = networkMode;
+
+        setLayout(new BorderLayout());
+        setBackground(Color.WHITE);
+        setBorder(new EmptyBorder(0, 0, 0, 0));
+
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
         setBorder(new EmptyBorder(0, 0, 0, 0));
@@ -163,7 +182,16 @@ public class HangmanPanel extends JPanel {
         btnEnd.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
         btnEnd.setBorderPainted(true);
 
-        btnEnd.addActionListener(e -> onEndGame());
+        btnEnd.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (networkMode && netListener != null) {
+                    netListener.onGameEnd();   // 서버로 /hangEnd 보내게 할 예정
+                }
+                onEndGame(); // 내 창 닫기
+            }
+        });
+
 
         endPanel.add(btnEnd);
 
@@ -172,11 +200,12 @@ public class HangmanPanel extends JPanel {
 
         add(bottom, BorderLayout.SOUTH);
 
-        // =========================================
-        // 6) 게임 시작
-        // =========================================
-        startNewGameRandom();
+        if (!networkMode) {
+            // 로컬 모드일 때만 랜덤 시작
+            startNewGameRandom();
+        }
     }
+
 
     // =========================================
     // 키보드 버튼 생성 (QWERTY + 가운데 정렬: 0,1,2 offset)
@@ -259,14 +288,22 @@ public class HangmanPanel extends JPanel {
     }
 
     private void handleKeyPress(char ch) {
-        int idx = Character.toUpperCase(ch) - 'A';
+        ch = Character.toUpperCase(ch);
+        int idx = ch - 'A';
         if (idx < 0 || idx >= 26) return;
 
         JButton btn = letterButtons[idx];
-        if (btn != null && btn.isEnabled()) {
+        if (btn == null || !btn.isEnabled()) return;
+
+        if (networkMode && netListener != null) {
+            // 네트워크 모드: 직접 처리 X, 서버로 보내라고 알림
+            netListener.onLetterChosen(Character.toLowerCase(ch));
+        } else {
+            // 로컬 모드: 그대로 처리
             onLetterSelected(Character.toLowerCase(ch), btn);
         }
     }
+
 
     // =========================================
     // 새 게임 (랜덤 시작)
@@ -359,16 +396,20 @@ public class HangmanPanel extends JPanel {
     // WIN / LOSE / END
     // =========================================
     private void onWin() {
-        // ★ 점수 누적 + 팝업 없이 바로 새 게임
         score++;
         lblScore.setText(String.format("Score: %02d", score));
-        startNewGameRandom();
+        showEndDialog(true);
+    }
+    private void onLose() {
+        showEndDialog(false);
     }
 
-    private void onLose() {
-        // ★ 커스텀 JDialog로 버튼 색 지정
+    // 게임 종료 공통 다이얼로그
+// win == true  → 성공
+// win == false → 실패
+    private void showEndDialog(boolean win) {
         Window parent = SwingUtilities.getWindowAncestor(this);
-        JDialog dialog = new JDialog(parent, "LOSE", Dialog.ModalityType.APPLICATION_MODAL);
+        JDialog dialog = new JDialog(parent, "게임 종료", Dialog.ModalityType.APPLICATION_MODAL);
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
         JPanel panel = new JPanel();
@@ -376,37 +417,73 @@ public class HangmanPanel extends JPanel {
         panel.setBorder(new EmptyBorder(15, 15, 15, 15));
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-        JLabel msg = new JLabel("<html>LOSE!<br/>정답: " + answer + "</html>", SwingConstants.CENTER);
+        String titleText  = win ? "성공!" : "실패!";
+        String detailText = "정답: " + answer;
+
+        JLabel msg = new JLabel(
+                "<html><center>" + titleText + "<br/>" + detailText + "</center></html>",
+                SwingConstants.CENTER
+        );
         msg.setAlignmentX(Component.CENTER_ALIGNMENT);
         msg.setFont(new Font("Dialog", Font.PLAIN, 14));
 
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         btnPanel.setBackground(Color.WHITE);
 
-        JButton restartBtn = new JButton("Restart");
+        JButton restartBtn = new JButton("재시작하기");
         restartBtn.setBackground(new Color(60, 179, 113));
         restartBtn.setForeground(Color.BLACK);
         restartBtn.setFocusPainted(false);
-      
-        JButton endBtn = new JButton("End");
-        endBtn.setBackground(new Color(190, 70, 60));
-        endBtn.setForeground(Color.BLACK);
-        endBtn.setFocusPainted(false);
 
-        // 리스타트 눌렀을 때
-        restartBtn.addActionListener(e -> {
-            dialog.dispose();
-            startNewGameRandom();
-        });
+        JButton exitBtn = new JButton("나가기");
+        exitBtn.setBackground(new Color(190, 70, 60));
+        exitBtn.setForeground(Color.BLACK);
+        exitBtn.setFocusPainted(false);
 
-        // 엔드 눌렀을 때
-        endBtn.addActionListener(e -> {
-            dialog.dispose();
-            onEndGame();
-        });
+        // 로컬 / 네트워크 모드에 따라 동작 나누기
+        if (networkMode && netListener != null) {
+            // ★ 멀티 플레이 모드
+
+            // 재시작: 서버에 "이 방 다시 시작" 요청
+            restartBtn.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                    netListener.onRestartRequested();  // ChatRoom이 /hangStart roomId 보냄
+                }
+            });
+
+            // 나가기: 서버에 /hangEnd 보내고, 내 창 닫기
+            exitBtn.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                    netListener.onGameEnd();  // /hangEnd roomId
+                    onEndGame();              // 내 창 닫기
+                }
+            });
+
+        } else {
+            // ★ 싱글(로컬) 모드
+            restartBtn.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                    startNewGameRandom();
+                }
+            });
+
+            exitBtn.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                    onEndGame();
+                }
+            });
+        }
 
         btnPanel.add(restartBtn);
-        btnPanel.add(endBtn);
+        btnPanel.add(exitBtn);
 
         panel.add(msg);
         panel.add(Box.createVerticalStrut(10));
@@ -418,6 +495,62 @@ public class HangmanPanel extends JPanel {
         dialog.setResizable(false);
         dialog.setVisible(true);
     }
+
+
+
+//    private void onLose() {
+//        // ★ 커스텀 JDialog로 버튼 색 지정
+//        Window parent = SwingUtilities.getWindowAncestor(this);
+//        JDialog dialog = new JDialog(parent, "LOSE", Dialog.ModalityType.APPLICATION_MODAL);
+//        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+//
+//        JPanel panel = new JPanel();
+//        panel.setBackground(Color.WHITE);
+//        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+//        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+//
+//        JLabel msg = new JLabel("<html>LOSE!<br/>정답: " + answer + "</html>", SwingConstants.CENTER);
+//        msg.setAlignmentX(Component.CENTER_ALIGNMENT);
+//        msg.setFont(new Font("Dialog", Font.PLAIN, 14));
+//
+//        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+//        btnPanel.setBackground(Color.WHITE);
+//
+//        JButton restartBtn = new JButton("Restart");
+//        restartBtn.setBackground(new Color(60, 179, 113));
+//        restartBtn.setForeground(Color.BLACK);
+//        restartBtn.setFocusPainted(false);
+//
+//        JButton endBtn = new JButton("End");
+//        endBtn.setBackground(new Color(190, 70, 60));
+//        endBtn.setForeground(Color.BLACK);
+//        endBtn.setFocusPainted(false);
+//
+//        // 리스타트 눌렀을 때
+//        restartBtn.addActionListener(e -> {
+//            dialog.dispose();
+//            startNewGameRandom();
+//        });
+//
+//        // 엔드 눌렀을 때
+//        endBtn.addActionListener(e -> {
+//            dialog.dispose();
+//            onEndGame();
+//        });
+//
+//        btnPanel.add(restartBtn);
+//        btnPanel.add(endBtn);
+//
+//        panel.add(msg);
+//        panel.add(Box.createVerticalStrut(10));
+//        panel.add(btnPanel);
+//
+//        dialog.setContentPane(panel);
+//        dialog.pack();
+//        dialog.setLocationRelativeTo(this);
+//        dialog.setResizable(false);
+//        dialog.setVisible(true);
+//    }
 
     private void onEndGame() {
         // 나중에 여기서 채팅방에 "행맨게임을 종료했습니다." 보내도 됨
@@ -497,6 +630,18 @@ public class HangmanPanel extends JPanel {
             }
         }
     }
+    // 네트워크로부터 받은 글자 적용 (버튼 상태도 같이 처리)
+    public void applyGuessFromNetwork(char ch) {
+        ch = Character.toLowerCase(ch);
+        int idx = ch - 'a';
+        if (idx < 0 || idx >= 26) return;
+
+        JButton btn = letterButtons[idx];
+        if (btn == null || !btn.isEnabled()) return;
+
+        onLetterSelected(ch, btn);
+    }
+
 
     // =========================================
     // 키보드 버튼 리스너
@@ -512,7 +657,13 @@ public class HangmanPanel extends JPanel {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            onLetterSelected(ch, btn);
+            if (networkMode && netListener != null) {
+                netListener.onLetterChosen(Character.toLowerCase(ch));
+            } else {
+                onLetterSelected(ch, btn);
+            }
         }
     }
+
 }
+

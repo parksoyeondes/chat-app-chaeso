@@ -25,6 +25,10 @@ public class ChatRoom extends JFrame {
     // 채팅 말풍선들이 쌓이는 패널
     private JPanel messagePanel;
     private JScrollPane scrollPane;
+    // 행맨 게임용
+    private JDialog hangmanDialog;
+    private HangmanPanel hangmanPanel;
+
 
     public ChatRoom(String roomId, ClientNet clientNet) {
         // 서버에서 받은 roomId (초대된 멤버 이름들을 조합한 문자열)
@@ -63,8 +67,15 @@ public class ChatRoom extends JFrame {
         txtInput = new JTextField();
         btnSend = new JButton("전송");
         JButton btnEmoji = new JButton("😊"); // 이모티콘 선택 버튼
+        JButton btnGame = new JButton("게임"); // 게임 시작 버튼
 
-        bottom.add(btnEmoji, BorderLayout.WEST);
+        // 왼쪽에 이모지 + 게임 버튼 두 개 배치
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        leftPanel.setOpaque(false);
+        leftPanel.add(btnEmoji);
+        leftPanel.add(btnGame);
+
+        bottom.add(leftPanel, BorderLayout.WEST);
         bottom.add(txtInput, BorderLayout.CENTER);
         bottom.add(btnSend, BorderLayout.EAST);
         add(bottom, BorderLayout.SOUTH);
@@ -73,6 +84,14 @@ public class ChatRoom extends JFrame {
         btnSend.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 sendMessage();
+            }
+        });
+
+        // 게임 시작 버튼 액션
+        btnGame.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                // 이 채팅방(roomId)에 게임 시작 요청
+                clientNet.SendMessage("/hangStart " + roomId);
             }
         });
 
@@ -277,7 +296,7 @@ public class ChatRoom extends JFrame {
         clientNet.SendMessage("/roomMsg " + roomId + " " + code);
     }
 
-   //==========  이모티콘 아이콘을 말풍선 없이 그대로 배치  ======
+   //================  이모티콘 아이콘을 말풍선 없이 그대로 배치  ============
     private void appendEmoji(boolean isMine, ImageIcon icon) {
         JLabel label = new JLabel(icon);
 
@@ -309,7 +328,7 @@ public class ChatRoom extends JFrame {
         });
     }
 
-    // ---------------- 이모지 선택창 (JDialog) ----------------
+    // ------------------- 이모지 선택창 (JDialog) ---------------------
 
     private void showEmojiPicker() {
         if (emojiDialog == null) {
@@ -367,4 +386,63 @@ public class ChatRoom extends JFrame {
         Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
         return new ImageIcon(scaled);
     }
+
+    //                            ====================== 행맨 게임 ========================
+
+    // ------------------------서버에서 /hangStart roomId wordIdx themeIdx 를 받았을 때 호출됨 -----------------------
+    public void openHangman(int wordIdx, int themeIdx) {
+        // 다이얼로그가 아직 없으면 한 번만 생성
+        if (hangmanDialog == null) {
+            hangmanPanel = new HangmanPanel(
+                    new HangmanPanel.HangmanNetListener() {
+                        @Override
+                        public void onLetterChosen(char ch) {
+                            // 내가 글자 선택 → 서버로 /hangGuess
+                            clientNet.SendMessage("/hangGuess " + roomId + " " + ch);
+                        }
+
+                        @Override
+                        public void onGameEnd() {
+                            // 게임 나가기 → 서버로 /hangEnd
+                            clientNet.SendMessage("/hangEnd " + roomId);
+                        }
+
+                        @Override
+                        public void onRestartRequested() {
+                            // 재시작하기 → 서버로 /hangStart
+                            clientNet.SendMessage("/hangStart " + roomId);
+                        }
+                    },
+                    true
+            );
+
+
+            hangmanDialog = new JDialog(this, "Hangman - " + roomId, false);
+            hangmanDialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
+            hangmanDialog.getContentPane().add(hangmanPanel);
+            hangmanDialog.pack();
+            hangmanDialog.setLocationRelativeTo(this);
+        }
+
+        // 서버가 준 인덱스로 같은 단어/테마로 시작
+        hangmanPanel.startNewGameFromIndex(wordIdx, themeIdx);
+        hangmanDialog.setVisible(true);
+        hangmanDialog.toFront();
+    }
+
+    // -----------------------  서버에서 /hangGuess roomId c 받은 뒤 호출됨 --------------------------
+    public void applyHangmanGuess(char ch) {
+        if (hangmanPanel != null) {
+            hangmanPanel.applyGuessFromNetwork(ch);
+        }
+    }
+
+    // ------------------------  서버에서 /hangEnd roomId 받은 뒤 호출됨  ------------------
+    public void closeHangman() {
+        if (hangmanDialog != null) {
+            hangmanDialog.setVisible(false);
+        }
+    }
+
+
 }
