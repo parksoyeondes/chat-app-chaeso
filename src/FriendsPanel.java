@@ -17,19 +17,25 @@ public class FriendsPanel extends JPanel implements TabView {
     private final DefaultListModel<String> model = new DefaultListModel<>();
     private final JList<String> friendList = new JList<>(model);
 
-    // 상단 내 프로필 UI를 갱신하기 위해 참조를 잡아둠
+    // 상단 내 프로필 UI를 갱신하기 위해 참조
     private JLabel profileImageLabel;
     private JLabel lblMyName;
 
-    // 친구들의 "내가 정한 이름" 저장용 (실제 서버 이름 → 내가 붙인 닉네임)
+    // 친구들의 "표시 이름" 저장용 (실제 서버 이름 → 내가 붙인 표시 이름)
     private final Map<String, String> friendNicknameMap = new HashMap<>();
 
-    // 친구 프로필용 기본 아이콘 (모든 친구들 같은 이미지)
+    // 친구별 프로필 데이터 (상대방 프로필)
+    private final Map<String, ProfileData> friendProfileMap = new HashMap<>();
+
+    // 친구 프로필 기본 아이콘 (모든 친구들 같은 이미지)
     private ImageIcon defaultFriendIcon;
+
+    // 서버 통신용 (나중에 프로필 실시간 동기화에 쓸 수 있음)
+    private ClientNet clientNet;
 
     public FriendsPanel(String myName) {
         this.myName = myName;
-        // 내 프로필 기본값 설정 (필요하면 기본 이미지 경로 수정)
+        // 내 프로필 기본값
         this.myProfile = new ProfileData(
                 myName,
                 "One line Introduction",
@@ -37,20 +43,20 @@ public class FriendsPanel extends JPanel implements TabView {
                 "/icons/profile_bg_default.png"
         );
 
-        // 친구들 공통 프로필 아이콘 (조금 작게)
+        // 친구들 공통 아이콘 (조금 작게)
         defaultFriendIcon = loadProfileIconSimple("/icons/tomato_face.png", 40, 32);
 
-        // 패널 기본
+        // 전체 패널 기본 설정
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
 
-        // ===== 상단 영역 (제목, 내 프로필, 구분선) =====
+        // ===== 상단 영역 (Friends 제목, 내 프로필, 구분선) =====
         JPanel topArea = new JPanel();
         topArea.setLayout(new BoxLayout(topArea, BoxLayout.Y_AXIS));
         topArea.setBackground(Color.WHITE);
         topArea.setBorder(new EmptyBorder(15, 15, 10, 15));
 
-        // 제목
+        // 제목 Friends
         JLabel lblTitle = new JLabel("Friends");
         lblTitle.setFont(new Font("Dialog", Font.BOLD, 20));
         lblTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -76,23 +82,26 @@ public class FriendsPanel extends JPanel implements TabView {
         lblMyName.setFont(new Font("Dialog", Font.PLAIN, 15));
         myProfilePanel.add(lblMyName);
 
-        // 내 프로필 클릭하면 프로필 창 띄우기
+        // 내 프로필 클릭 → 내 프로필 창(ProfileWindow) 띄우기
         myProfilePanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         myProfilePanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                // 부모 Frame 찾기
                 Window w = SwingUtilities.getWindowAncestor(FriendsPanel.this);
                 Frame owner = (w instanceof Frame) ? (Frame) w : null;
 
-                ProfileWindow dialog = new ProfileWindow(owner, myProfile, new Runnable() {
-                    @Override
-                    public void run() {
-                        refreshMyProfileView();
-                        // TODO: 여기서 서버로 "/profile_update ..." 같은 메시지 보내도 됨
-                        // ex) clientNet.SendMessage("/profile_update " + ... );
-                    }
-                });
+                ProfileWindow dialog = new ProfileWindow(
+                        owner,
+                        myProfile,
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                refreshMyProfileView();
+                                // 여기서 내 프로필 변경 서버로 보내는 로직 추가 가능
+                                // if (clientNet != null) clientNet.SendMessage("/profileUpdate ...");
+                            }
+                        }
+                );
                 dialog.setVisible(true);
             }
         });
@@ -112,10 +121,10 @@ public class FriendsPanel extends JPanel implements TabView {
         friendList.setFixedCellHeight(40);
         friendList.setBackground(Color.WHITE);
 
-        // 친구 한 줄당 프로필 이미지 + 이름/닉네임 보여주는 렌더러 설정
+        // 각 줄 렌더러 (아이콘 + 표시 이름)
         friendList.setCellRenderer(new FriendCellRenderer());
 
-        // 친구 항목 더블클릭하면 "표시 이름" 수정 가능
+        // ★ 친구 항목 더블클릭 → 친구 프로필 창 띄우기
         friendList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -123,24 +132,7 @@ public class FriendsPanel extends JPanel implements TabView {
                     int index = friendList.locationToIndex(e.getPoint());
                     if (index >= 0) {
                         String realName = model.getElementAt(index); // 서버에 있는 실제 이름
-                        String currentNick = friendNicknameMap.getOrDefault(realName, realName);
-
-                        String input = JOptionPane.showInputDialog(
-                                FriendsPanel.this,
-                                realName + " 의 표시 이름을 입력하세요",
-                                currentNick
-                        );
-
-                        if (input != null) { // 취소 안 눌렀으면
-                            String trimmed = input.trim();
-                            if (trimmed.isEmpty()) {
-                                // 빈 문자열이면 별칭 제거 → 다시 원래 이름으로 표시
-                                friendNicknameMap.remove(realName);
-                            } else {
-                                friendNicknameMap.put(realName, trimmed);
-                            }
-                            friendList.repaint();
-                        }
+                        openFriendProfile(realName);
                     }
                 }
             }
@@ -153,7 +145,12 @@ public class FriendsPanel extends JPanel implements TabView {
         add(scroll, BorderLayout.CENTER);
     }
 
-    // 내 프로필이 수정되었을 때 상단 UI 갱신
+    // ===== ChatHomeFrame 에서 ClientNet 주입 =====
+    public void setClientNet(ClientNet clientNet) {
+        this.clientNet = clientNet;
+    }
+
+    // ===== 내 프로필 UI 갱신 =====
     private void refreshMyProfileView() {
         lblMyName.setText(myProfile.getName());
         ImageIcon icon = loadProfileIconSimple(myProfile.getProfileImagePath(), 55, 45);
@@ -161,7 +158,68 @@ public class FriendsPanel extends JPanel implements TabView {
             profileImageLabel.setIcon(icon);
             profileImageLabel.setText("");
         }
-        // 상태메시지를 FriendsPanel에서 보여주고 싶으면 Label 하나 더 만들어서 여기서 setText 하면 됨
+    }
+
+    // ===== 친구 프로필 창 띄우기 =====
+    private void openFriendProfile(String realName) {
+        if (realName == null || realName.trim().isEmpty()) return;
+
+        // 친구 프로필 데이터 (없으면 기본값 생성)
+        ProfileData friendProfile = friendProfileMap.get(realName);
+        if (friendProfile == null) {
+            friendProfile = new ProfileData(
+                    realName,
+                    "One line Introduction",
+                    "/icons/tomato_face.png",
+                    "/icons/profile_bg_default.png"
+            );
+            friendProfileMap.put(realName, friendProfile);
+        }
+
+        // 현재 표시 이름 (닉네임) 가져오기
+        String displayName = getDisplayName(realName);
+
+        Window w = SwingUtilities.getWindowAncestor(this);
+        Frame owner = (w instanceof Frame) ? (Frame) w : null;
+
+        // FriendProfileWindow 열기
+        FriendProfileWindow dialog = new FriendProfileWindow(
+                owner,
+                friendProfile,
+                realName,
+                displayName,
+                newDisplayName -> {
+                    // Save 눌렀을 때 → 이 친구의 표시 이름 저장
+                    setFriendNickname(realName, newDisplayName);
+                }
+        );
+        dialog.setVisible(true);
+    }
+
+    // ===== 표시 이름 저장/삭제 =====
+    public void setFriendNickname(String realName, String nick) {
+        if (realName == null) return;
+        String key = realName.trim();
+        if (key.isEmpty()) return;
+
+        if (nick == null || nick.trim().isEmpty()) {
+            friendNicknameMap.remove(key);   // 빈 문자열이면 별칭 제거 → 실제 이름으로 표시
+        } else {
+            friendNicknameMap.put(key, nick.trim());
+        }
+        friendList.repaint();
+    }
+
+    // ===== 실제 이름 → 화면에 보여줄 이름(표시 이름) =====
+    public String getDisplayName(String realName) {
+        if (realName == null) return "";
+        String trimmed = realName.trim();
+        if (trimmed.isEmpty()) return "";
+        String nick = friendNicknameMap.get(trimmed);
+        if (nick != null && !nick.trim().isEmpty()) {
+            return nick.trim();
+        }
+        return trimmed;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -194,40 +252,66 @@ public class FriendsPanel extends JPanel implements TabView {
 
     // ===== TabView 구현 =====
     @Override public String getTitle() { return "Friends"; }
-    @Override public void refresh() { /* 서버에서 목록 다시 받는 훅 */ }
+    @Override public void refresh() { /* 나중에 서버에서 목록 다시 받는 훅 */ }
     @Override public JComponent getComponent() { return this; }
 
-    // ===== 목록 조작 메서드 =====
+    // ===== 서버에서 받은 유저 목록 전체 설정 =====
     public void setUserList(String[] names) {
-        model.clear();              // 기존 목록 싹 지우고
+        model.clear();
+        if (names == null) return;
+
         for (int i = 0; i < names.length; i++) {
             if (names[i] == null) continue;
 
             String trimmed = names[i].trim();
-            if (trimmed.isEmpty()) continue;   // 공백/빈 문자열이면 무시
+            if (trimmed.isEmpty()) continue;
 
-            model.addElement(trimmed);
+            if (!model.contains(trimmed)) {
+                model.addElement(trimmed);
+            }
+
+            // 친구 프로필 데이터도 기본값으로 하나씩 준비
+            friendProfileMap.computeIfAbsent(
+                    trimmed,
+                    n -> new ProfileData(
+                            n,
+                            "One line Introduction",
+                            "/icons/tomato_face.png",
+                            "/icons/profile_bg_default.png"
+                    )
+            );
         }
     }
 
+    // 친구 목록 전체 클리어
     public void clearFriends() {
         model.clear();
         friendNicknameMap.clear();
+        friendProfileMap.clear();
     }
 
-    // 새로 들어온 유저 집어넣기
+    // 새로 들어온 유저 추가
     public void addUser(String name) {
         if (name == null) return;
-        String trimmed = name.trim(); // 혹시 모를 공백 제거
+        String trimmed = name.trim();
         if (trimmed.isEmpty()) return;
 
-        // 이미 있는 이름이면 중복 추가 안 하기
         if (!model.contains(trimmed)) {
             model.addElement(trimmed);
         }
+
+        friendProfileMap.computeIfAbsent(
+                trimmed,
+                n -> new ProfileData(
+                        n,
+                        "One line Introduction",
+                        "/icons/tomato_face.png",
+                        "/icons/profile_bg_default.png"
+                )
+        );
     }
 
-    // 유저 목록 반환하기 (실제 서버 이름)
+    // 유저 목록 반환 (실제 서버 이름)
     public String[] getFriendsList() {
         int size = model.getSize();
         String[] usersForChat = new String[size];
@@ -238,7 +322,7 @@ public class FriendsPanel extends JPanel implements TabView {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // JList 한 줄을 그려주는 렌더러 (프로필 이미지 + 닉네임 표시)
+    // JList 렌더러 (프로필 이미지 + 표시 이름)
     // ─────────────────────────────────────────────────────────────
     private class FriendCellRenderer extends JPanel implements ListCellRenderer<String> {
 
@@ -268,11 +352,11 @@ public class FriendsPanel extends JPanel implements TabView {
                 boolean isSelected,
                 boolean cellHasFocus
         ) {
-            // value = 실제 서버에서 받은 이름
+            // value = 실제 서버 이름
             String realName = value;
-            String displayName = friendNicknameMap.getOrDefault(realName, realName);
+            String displayName = getDisplayName(realName);
 
-            // 프로필 아이콘 (모든 친구 동일)
+            // 프로필 아이콘
             if (defaultFriendIcon != null) {
                 iconLabel.setIcon(defaultFriendIcon);
                 iconLabel.setText("");

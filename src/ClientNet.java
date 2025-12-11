@@ -1,29 +1,27 @@
+import javax.swing.ImageIcon;
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ClientNet {
 
-    // 서버와 연결되는 소켓 및 I/O 스트림들
     Socket socket;
     private InputStream is;
     private OutputStream os;
     private DataInputStream dis;
     private DataOutputStream dos;
 
-    // 화면(친구 목록 / 채팅 목록)과 연결
     private FriendsPanel friendsPanel;
     private ChatsPanel chatsPanel;
 
-    // roomId(예: "손채림,박소연") → 해당 채팅방 창(ChatRoom) 객체
+    // roomId -> ChatRoom
     private Map<String, ChatRoom> roomMap = new HashMap<>();
 
-    // 이 클라이언트 유저 자신의 이름
+    // 내 이름
     private String me;
 
-
-    // ChatHomeFrame에서 넘겨준 정보로 네트워크 연결 설정
     public ClientNet(String username,
                      String ip,
                      String port,
@@ -35,15 +33,16 @@ public class ClientNet {
             this.friendsPanel = friendsPanel;
 
             socket = new Socket(ip, Integer.parseInt(port));
+            System.out.println("[Client] 서버 연결 성공: " + ip + ":" + port);
 
-            dis = new DataInputStream(socket.getInputStream());
-            dos = new DataOutputStream(socket.getOutputStream());
+            is = socket.getInputStream();
+            os = socket.getOutputStream();
+            dis = new DataInputStream(is);
+            dos = new DataOutputStream(os);
 
-            // 서버에게 로그인한 유저 이름 전송
-            // 형식: "/login 유저이름"
+            // 로그인
             SendMessage("/login " + username);
 
-            // 서버에서 오는 메시지를 계속 듣는 수신 스레드 시작
             ListenNetwork net = new ListenNetwork();
             net.start();
 
@@ -52,101 +51,117 @@ public class ClientNet {
         }
     }
 
-
-    // ------------서버로부터 오는 걸 받는 수신 스레드 ------------------
     class ListenNetwork extends Thread {
         public void run() {
             while (true) {
                 try {
+                    // ===== 항상 UTF 헤더 먼저 받음 =====
                     String msg = dis.readUTF();
+                    if (msg == null) {
+                        System.out.println("[Client] readUTF() -> null, 수신 종료");
+                        break;
+                    }
 
-                    // 1차 파싱: 명령어 부분(cmd)와 나머지(rest) 분리
-                    // 예)
-                    //   "/userName 손채림,박소연"
-                    //   "/newUser 아무개"
-                    //   "/openRoom 손채림,박소연"
-                    //   "/roomMsg 방아이디 [이름] 메시지..."
                     String[] msgs = msg.split(" ", 2);
-                    String cmd = msgs[0];                     // 명령어 부분
-                    String rest = (msgs.length > 1) ? msgs[1] : ""; // 뒤에 붙은 나머지 문자열
+                    String cmd = msgs[0];
+                    String rest = (msgs.length > 1) ? msgs[1] : "";
 
-                    // --------------   전체 유저 목록 받는 경우 --------------
-                    //    형식: /userName 유저1,유저2,유저3
+                    // -------------------- 유저 목록 --------------------
                     if (cmd.equals("/userName")) {
-                        // rest: "손채림,박소연,아무개"
                         String[] names = rest.split(",");
-                        friendsPanel.setUserList(names);
-
-                        //  -------------- 새로운 유저 한 명이 로그인한 경우 --------------
+                        if (friendsPanel != null) {
+                            friendsPanel.setUserList(names);
+                        }
 
                     } else if (cmd.equals("/newUser")) {
                         String newUser = rest;
-                        friendsPanel.addUser(newUser);
+                        if (friendsPanel != null) {
+                            friendsPanel.addUser(newUser);
+                        }
 
-                        // ----------------------- 채팅방을 열라는 명령 -----------------------
-                        //    형식: /openRoom 방아이디
-                        //    방아이디 예: "손채림,박소연"
+                    // -------------------- 방 열기 -----------------------
                     } else if (cmd.equals("/openRoom")) {
                         String roomId = rest;
 
-                        // 이미 있는 방인지 확인
                         ChatRoom room = roomMap.get(roomId);
                         if (room == null) {
-                            // 처음 열리는 방이면 새 ChatRoom 생성 후 map에 등록
                             room = new ChatRoom(roomId, ClientNet.this);
                             roomMap.put(roomId, room);
                         } else {
-                            // 이미 만들어진 방이면 다시 보여주기만 함
                             room.setVisible(true);
                             room.toFront();
                             room.requestFocus();
                         }
 
-                        // Chats 탭(채팅 리스트)에도 방 이름 추가
                         if (chatsPanel != null) {
                             chatsPanel.addRoom(roomId);
                         }
                         room.setVisible(true);
 
-                        //  ------------------------ 채팅방 안의 메시지 전달 -----------------------
-                        //    형식: /roomMsg 방아이디 [보낸이] 메시지내용
+                    // -------------------- 텍스트 메시지 -------------------
                     } else if (cmd.equals("/roomMsg")) {
-                        // 여기서는 원문 전체에서 다시 3부분으로 나눔:
-                        //   parts[0] = "/roomMsg"
-                        //   parts[1] = roomId
-                        //   parts[2] = "[이름] 메시지..."
                         String[] parts = msg.split(" ", 3);
-                        if (parts.length < 3) {
-                            // 형식이 이상하면 무시
-                            continue;
-                        }
+                        if (parts.length < 3) continue;
+
                         String roomId  = parts[1];
                         String chatMsg = parts[2];
 
-                        String senderName = null; // [] 안의 이름
-                        String body = chatMsg;    // 실제 메시지 내용
+                        String senderName = null;
+                        String body = chatMsg;
 
-                        // "[이름] 메시지..." 형식이면 이름과 본문 분리
                         if (chatMsg.startsWith("[")) {
                             int idx = chatMsg.indexOf("]");
                             if (idx > 1) {
-                                senderName = chatMsg.substring(1, idx);   // 대괄호 안의 이름
-                                body = chatMsg.substring(idx + 1).trim(); // 나머지 텍스트
+                                senderName = chatMsg.substring(1, idx);
+                                body = chatMsg.substring(idx + 1).trim();
                             }
                         }
 
-                        // roomId에 해당하는 채팅방 찾기
                         ChatRoom room = roomMap.get(roomId);
                         if (room != null) {
-                            // 이름과 메시지 내용을 따로 넘겨서 말풍선으로 표시
                             room.appendMessage(senderName, body);
                         }
-                    }
-                    // ---------------------------- 행맨 게임 시작 --------------
-                    else if (cmd.equals("/hangStart")) {
-                        // rest = "roomId wordIdx themeIdx"
+
+                    // ===================== 이미지 수신 =====================
+                    } else if (cmd.equals("/roomImg")) {
+                        // rest = "roomId senderName"
+                        String[] parts = rest.split(" ", 2);
+                        if (parts.length < 2) {
+                            System.out.println("[Client] /roomImg 형식 이상: " + rest);
+                            continue;
+                        }
+
+                        String roomId     = parts[0];
+                        String senderName = parts[1];
+
+                        // 바로 뒤에 이미지 길이 + 바이트가 따라옴
+                        int length = dis.readInt();
+                        if (length <= 0) {
+                            System.out.println("[Client] /roomImg length <= 0: " + length);
+                            continue;
+                        }
+
+                        byte[] buf = new byte[length];
+                        dis.readFully(buf);
+
+                        System.out.println("[Client] /roomImg 수신 완료 roomId=" + roomId +
+                                " sender=" + senderName + " len=" + length);
+
+                        ImageIcon icon = new ImageIcon(buf);
+                        boolean isMine = senderName.equals(me);
+
+                        ChatRoom room = roomMap.get(roomId);
+                        if (room != null) {
+                            room.appendImage(isMine, icon);
+                        } else {
+                            System.out.println("[Client] roomId=" + roomId + " 채팅방 없음");
+                        }
+
+                    // ===================== 행맨 시작 ======================
+                    } else if (cmd.equals("/hangStart")) {
                         String[] parts = rest.split(" ");
                         if (parts.length < 3) {
+                            System.out.println("[Client] /hangStart 형식 이상: " + rest);
                             continue;
                         }
 
@@ -157,23 +172,20 @@ public class ClientNet {
                             wordIdx  = Integer.parseInt(parts[1]);
                             themeIdx = Integer.parseInt(parts[2]);
                         } catch (NumberFormatException ex) {
-                            // 숫자 파싱 실패하면 무시
+                            System.out.println("[Client] /hangStart 숫자 파싱 실패: " + rest);
                             continue;
                         }
 
                         ChatRoom room = roomMap.get(roomId);
                         if (room != null) {
-                            // 이 방의 행맨창 열기 (아직 구현 wnd...)
                             room.openHangman(wordIdx, themeIdx);
+                        } else {
+                            System.out.println("[Client] /hangStart room 없음: " + roomId);
                         }
-                    }
-                    // ----------------------- 행맨 게임 플레이 중 -----------------------
-                    else if (cmd.equals("/hangGuess")) {
-                        // rest = "roomId c"
+
+                    } else if (cmd.equals("/hangGuess")) {
                         String[] parts = rest.split(" ");
-                        if (parts.length < 2) {
-                            continue;
-                        }
+                        if (parts.length < 2) continue;
 
                         String roomId = parts[0];
                         char ch = parts[1].charAt(0);
@@ -182,10 +194,8 @@ public class ClientNet {
                         if (room != null) {
                             room.applyHangmanGuess(ch);
                         }
-                    }
-                    // ------------------ 행맨 게임 끝 -------------------
-                    else if (cmd.equals("/hangEnd")) {
-                        // rest = "roomId"
+
+                    } else if (cmd.equals("/hangEnd")) {
                         String roomId = rest.trim();
 
                         ChatRoom room = roomMap.get(roomId);
@@ -194,51 +204,58 @@ public class ClientNet {
                         }
                     }
 
+                } catch (EOFException eof) {
+                    System.out.println("[Client] 서버와 연결 종료됨 (EOF) – 수신 스레드 종료");
+                    break;
                 } catch (IOException e) {
-                    // 수신 중 에러가 나면 스트림/소켓 정리 후 루프 종료
+                    System.out.println("[Client] ListenNetwork IOException: " + e);
                     e.printStackTrace();
                     try {
-                        dos.close();
-                        dis.close();
-                        socket.close();
-                        break;
-                    } catch (Exception ee) {
-                        break;
+                        if (dos != null) dos.close();
+                        if (dis != null) dis.close();
+                        if (socket != null && !socket.isClosed()) socket.close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
                     }
+                    break;
                 }
             }
         }
     }
 
-    // 서버로 문자열 한 줄을 전송하는 메서드
     public void SendMessage(String msg) {
         try {
+            // System.out.println("[Client] SEND: " + msg);
             dos.writeUTF(msg);
+            dos.flush();
         } catch (IOException e) {
+            System.out.println("[Client] SendMessage IOException: " + e);
             try {
-                dos.close();
-                dis.close();
-                socket.close();
+                if (dos != null) dos.close();
+                if (dis != null) dis.close();
+                if (socket != null && !socket.isClosed()) socket.close();
             } catch (IOException e1) {
                 e1.printStackTrace();
-                System.exit(0);
             }
         }
     }
 
-    //이 클라이언트의 유저 이름 리턴
     public String getUsername() {
         return me;
     }
 
+    // ★★★ 여기! 실제 이름 → 내 클라 기준 표시 이름 ★★★
+    public String getDisplayName(String name) {
+        if (friendsPanel != null) {
+            return friendsPanel.getDisplayName(name);
+        }
+        return name;
+    }
 
-     //ChatsPanel에서 방 이름을 클릭했을 때
-     //이미 있는 방이면 다시 열고, 없으면 새로 생성해서 연다.
     public void openRoom(String roomId) {
         ChatRoom room = roomMap.get(roomId);
 
         if (room == null) {
-            // 혹시 map에 없다면 새로 만들어서 등록
             room = new ChatRoom(roomId, this);
             roomMap.put(roomId, room);
         }
@@ -248,4 +265,25 @@ public class ClientNet {
         room.requestFocus();
     }
 
+    // ================== 이미지 전송 ==================
+    public void sendImage(String roomId, File file) {
+        try {
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            System.out.println("[Client] sendImage roomId=" + roomId + " size=" + bytes.length + " bytes");
+
+            // 1) 헤더 UTF
+            dos.writeUTF("/roomImg " + roomId + " " + me);
+
+            // 2) 길이 int
+            dos.writeInt(bytes.length);
+
+            // 3) 실제 데이터
+            dos.write(bytes);
+            dos.flush();
+
+        } catch (IOException e) {
+            System.out.println("[Client] sendImage IOException: " + e);
+            e.printStackTrace();
+        }
+    }
 }

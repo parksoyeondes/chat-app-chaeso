@@ -1,18 +1,13 @@
-//JavaChatServer.java (Java Chatting Server)
-
-import java.awt.EventQueue;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Vector;
 import java.util.Random;
-
+import java.util.Vector;
 
 import static java.rmi.server.LogStream.log;
 
@@ -21,53 +16,40 @@ public class JavaChatServer {
     private ServerSocket socket;
     private Socket client_socket;
     private Vector<UserService> UserVec = new Vector<>();
-    // 연결된 사용자를 저장할 벡터, ArrayList와 같이 동적 배열을 만들어주는 컬렉션 객체
-    //private static final int BUF_LEN = 128; // Windows 처럼 BUF_LEN 을 정의
 
-    public static void main(String[] args) {   // 스윙 비주얼 디자이너를 이용해 GUI를 만들면 자동으로 생성되는 main 함수
-       JavaChatServer server = new JavaChatServer();
+    public static void main(String[] args) {
+        new JavaChatServer();
     }
 
     public JavaChatServer() {
         try {
-            socket = new ServerSocket(30000);//오픈 소켓 생성
-            AcceptServer accept_server = new AcceptServer(); // 블로킹 클라이언트소켓 생성
+            socket = new ServerSocket(30000);
+            System.out.println("[Server] 서버 시작: 포트 30000");
+            AcceptServer accept_server = new AcceptServer();
             accept_server.start();
         } catch (IOException e) {
             log("Server start error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    // -------------------------------------------------------------
-    // [1] AcceptServer
-    // - 서버소켓.accept()를 계속 돌면서
-    //   새로 들어온 클라이언트마다 UserService 스레드를 하나씩 생성
-    // --------------------------------------------------------------
     class AcceptServer extends Thread {
         public void run() {
             while (true) {
                 try {
-                    client_socket = socket.accept(); // accept가 일어나기 전까지는 무한 대기중
-                    // User 당 하나씩 전용 Thread 생성
-                    UserService new_user = new UserService(client_socket);
+                    client_socket = socket.accept();
+                    System.out.println("[Server] 클라이언트 접속: " + client_socket);
 
-                    //만들면서 정보 저장하기
-                    //-> 유저 한 명당 "하나씩" 존재하는 스레드객체 넣기 = client_socket임
+                    UserService new_user = new UserService(client_socket);
                     UserVec.add(new_user);
-                    new_user.start(); // 만든 객체의 스레드 실행
+                    new_user.start();
                 } catch (IOException e) {
                     log("!!!! accept 에러 발생... !!!!");
+                    e.printStackTrace();
                 }
             }
         }
     }
-
-    // ----------------------------------------------------------------
-    // [2] UserService
-    // - 클라이언트 1명당 생성되는 스레드
-    // - 이 스레드에서 그 클라이언트가 보낸 메시지를 계속 읽으면서
-    //   프로토콜(/openRoom, /roomMsg 등)을 처리
-    // -----------------------------------------------------------------
 
     class UserService extends Thread {
 
@@ -76,11 +58,13 @@ public class JavaChatServer {
         private DataInputStream dis;
         private DataOutputStream dos;
         private Socket client_socket;
-        private Vector<UserService> user_vc; // 제네릭 타입 사용
+        private Vector<UserService> user_vc;
         private String UserName = "";
 
+        // 이 유저에 대한 출력 동기화용 락
+        private final Object outLock = new Object();
+
         public UserService(Socket client_socket) {
-            // 매개변수로 넘어온 소켓 객체 저장
             this.client_socket = client_socket;
             this.user_vc = UserVec;
             try {
@@ -89,48 +73,68 @@ public class JavaChatServer {
                 os = client_socket.getOutputStream();
                 dos = new DataOutputStream(os);
 
-                //유저이름
-                String line1 = dis.readUTF();      // 제일 처음 연결되면 클라이언트의 SendMessage("/login " + UserName);에 의해 "/login UserName" 문자열이 들어옴
-                String[] msg = line1.split(" ");   //line1이라는 문자열을 공백(" ")을 기준으로 분할
-                UserName = msg[1].trim();          //분할된 문자열 배열 msg의 두 번째 요소(인덱스 1)를 가져와 trim 메소드를 사용하여 앞뒤의 공백을 제거
+                String line1 = dis.readUTF(); // "/login UserName"
+                String[] msg = line1.split(" ", 2);
+                if (msg.length >= 2) {
+                    UserName = msg[1].trim();
+                } else {
+                    UserName = "Unknown";
+                }
 
-                //새로 들어온 클라에게 현재 접속자 전체 목록 내려주기
+                System.out.println("[Server] 로그인: " + UserName);
+
                 WriteOne("/userName " + getCurrentUserList());
-                //다른 클라에게도 new 사람이 들어왔다고 알리기
                 WriteAll("/newUser " + UserName);
 
-
-            } catch (Exception e) {
-                //AppendText("userService error");
+            } catch (IOException e) {
+                System.out.println("[Server] UserService 생성 중 예외: " + e);
+                e.printStackTrace();
             }
         }
 
-        // 현재 접속중인 모든 유저 이름을 "유저1,유저2,..." 문자열로 바꿈
+        // 전체 유저 목록 "A,B,C"
         public String getCurrentUserList() {
             StringBuilder builder = new StringBuilder();
-            for(int i = 0; i < user_vc.size(); i++){
+            for (int i = 0; i < user_vc.size(); i++) {
                 UserService user = user_vc.get(i);
-                if(user.UserName == null || user.UserName.isEmpty()){
-                    continue;
-                }
-                if(builder.length()>0)builder.append(",");
+                if (user.UserName == null || user.UserName.isEmpty()) continue;
+                if (builder.length() > 0) builder.append(",");
                 builder.append(user.UserName);
             }
             return builder.toString();
         }
 
         public void logout() {
-            UserVec.removeElement(this); // 에러가난 현재 객체를 벡터에서 지운다
-        	String br_msg ="["+UserName+"]님이 퇴장 하였습니다.\n";   // 다른 User들에게 전송할 메시지 생성  [추가]
-        	WriteAll(br_msg); // 다른 User들에게 전송  [추가]
-
+            UserVec.removeElement(this);
+            String br_msg = "[" + UserName + "]님이 퇴장 하였습니다.\n";
+            WriteAll(br_msg);
+            System.out.println("[Server] 로그아웃: " + UserName);
         }
 
-        // 클라이언트로 메시지 전송
+        // synchronized UTF 패킷 전송
+        private void writeUTFPacket(String msg) throws IOException {
+            synchronized (outLock) {
+                dos.writeUTF(msg);
+                dos.flush();
+            }
+        }
+
+        // synchronized 이미지 패킷 전송
+        private void writeImagePacket(String header, byte[] imgBytes) throws IOException {
+            synchronized (outLock) {
+                dos.writeUTF(header);              // "/roomImg roomId sender"
+                dos.writeInt(imgBytes.length);     // 길이
+                dos.write(imgBytes);               // 실제 데이터
+                dos.flush();
+            }
+        }
+
         public void WriteOne(String msg) {
             try {
-                dos.writeUTF(msg);
+                writeUTFPacket(msg);
             } catch (IOException e) {
+                System.out.println("[Server] WriteOne IOException(" + UserName + "): " + e);
+                e.printStackTrace();
                 try {
                     dos.close();
                     dis.close();
@@ -142,86 +146,107 @@ public class JavaChatServer {
             }
         }
 
-        //모든 다중 클라이언트에게 순차적으로 채팅 메시지 전달
         public void WriteAll(String str) {
             for (int i = 0; i < user_vc.size(); i++) {
-            	UserService user = user_vc.get(i);     // get(i) 메소드는 user_vc 컬렉션의 i번째 요소를 반환
+                UserService user = user_vc.get(i);
                 user.WriteOne(str);
             }
         }
-        // -------------------------------------------------------------
-        // [run()]: 클라이언트에서 오는 메시지를 계속 읽으면서
-        //         /openRoom, /roomMsg 등 각종 프로토콜 처리
-        // -------------------------------------------------------------
+
         public void run() {
             while (true) {
                 try {
                     String msg = dis.readUTF();
+                    if (msg == null) {
+                        System.out.println("[Server] readUTF() -> null, " + UserName + " 연결 종료");
+                        break;
+                    }
+
                     msg = msg.trim();
-                    // 예:
-                    // "/openRoom 아무개,손채림,박소연"
-                    // "/roomMsg 아무개,손채림,박소연 안녕~ 난 채림이야"
-                    String[] args = msg.split(" ",3); //
-                    // [0] 이 명령어 프로토콜이고
-                    // [1]가 룸 아이디
-                    // [2]이 이 뒤로 오는 나머지 문자열 하나로 덩어리로 받겠다
-                    String cmd =  args[0];
+                    String[] args = msg.split(" ", 3);
+                    String cmd = args[0];
+
+                    System.out.println("[Server] RECV(" + UserName + "): " + msg);
+
+                    // ---------------- 방 열기 ----------------
                     if (cmd.equals("/openRoom")) {
-                        String roomId = args[1]; // 채팅방 소속인들? 무튼 "아무개,손채림,박소연"
+                        String roomId = args[1];
                         String[] memberNames = roomId.split(",");
-                        // 전체 접속자(user_vc)를 돌면서
-                        for (int i = 0; i < user_vc.size(); i++) { // 일단 유저벡터에 순서대로 들어와있는 "전체" 클라 돌기
+
+                        for (int i = 0; i < user_vc.size(); i++) {
                             UserService user = user_vc.get(i);
-                            if (user.UserName == null) {
-                                continue;
-                            }
-                            // 그리고 두번쨰로 이름 검사하기
+                            if (user.UserName == null) continue;
+
                             for (int j = 0; j < memberNames.length; j++) {
                                 String name = memberNames[j].trim();
-
-                                // 동일 인물 나왔으면 이제 그 유저에게 메시지 전송
                                 if (user.UserName.equals(name)) {
-                                    // 이 유저는 이 방 멤버 → 방 열라고! 신호 주는거 그러면 GUI 채팅방 각자 만듦
-                                    user.WriteOne("/openRoom " + roomId); //
+                                    user.WriteOne("/openRoom " + roomId);
                                     break;
                                 }
                             }
                         }
                     }
-                    // ------------------- 단톡방 내 메시지 -------------------
-                    else if (cmd.equals("/roomMsg")) {
-                        // /roomMsg 아무개,손채림,박소연 안녕 난 채림이야
 
+                    // -------------- 텍스트 메시지 --------------
+                    else if (cmd.equals("/roomMsg")) {
                         if (args.length < 3) {
                             WriteOne("사용법: /roomMsg [roomId] [message]\n");
                             continue;
                         }
-                        String roomId = args[1]; //채팅방 유저
-                        String body = args[2];   // 클라가 보낸 메세지
+                        String roomId = args[1];
+                        String body   = args[2];
 
-                        // 이 유저서비스 스레드의 UserName이 곧 보낸 사람이니
-                        String sendText = "[" + UserName + "] " + body; // GUI창에 올라갈 메시지라고 생각하면 됨
+                        String sendText = "[" + UserName + "] " + body;
                         sendToRoom(roomId, sendText);
                     }
-                    // -------------- 행맨 게임 프로토콜 ---------------
 
+                    // -------------- 이미지 메시지 ---------------
+                    else if (cmd.equals("/roomImg")) {
+                        if (args.length < 3) {
+                            System.out.println("[Server] /roomImg 인자 부족: " + msg);
+                            continue;
+                        }
+
+                        String roomId = args[1];
+                        String sender = args[2];
+
+                        int length = dis.readInt();
+                        if (length <= 0) {
+                            System.out.println("[Server] /roomImg length <= 0 from " + UserName);
+                            continue;
+                        }
+
+                        byte[] imgBytes = new byte[length];
+                        dis.readFully(imgBytes);
+
+                        System.out.println("[Server] /roomImg 수신: from=" + UserName +
+                                " roomId=" + roomId + " sender=" + sender +
+                                " len=" + length);
+
+                        sendImageToRoom(roomId, sender, imgBytes);
+                    }
+
+                    // -------------- 프로필 업데이트 --------------
+                    else if (cmd.equals("/profileUpdate")) {
+                        // 클라이언트에서 보낸 형식 그대로 전체 브로드캐스트
+                        // 형태: /profileUpdate userId displayName::status
+                        WriteAll(msg);
+                    }
+
+                    // -------------- 행맨 시작 ------------------
                     else if (cmd.equals("/hangStart")) {
-                        // C -> S : /hangStart roomId
                         if (args.length < 2) continue;
                         String roomId = args[1];
 
-                        // 단어/테마 인덱스 서버에서 랜덤 결정
                         Random r = new Random();
-                        int wordIdx  = r.nextInt(4); // WORDS.length == 4
-                        int themeIdx = 0;            // THEMES 하나뿐이면 0 고정
+                        int wordIdx  = r.nextInt(4);
+                        int themeIdx = 0;
 
-                        // 그대로 방 전체에 뿌리기
                         String send = "/hangStart " + roomId + " " + wordIdx + " " + themeIdx;
                         sendRawToRoom(roomId, send);
                     }
 
                     else if (cmd.equals("/hangGuess")) {
-                        // C -> S : /hangGuess roomId c
                         if (args.length < 3) continue;
                         String roomId = args[1];
                         String letter = args[2];
@@ -231,7 +256,6 @@ public class JavaChatServer {
                     }
 
                     else if (cmd.equals("/hangEnd")) {
-                        // C -> S : /hangEnd roomId
                         if (args.length < 2) continue;
                         String roomId = args[1];
 
@@ -239,40 +263,44 @@ public class JavaChatServer {
                         sendRawToRoom(roomId, send);
                     }
 
-
-                } catch (IOException e) {
+                } catch (EOFException eof) {
+                    System.out.println("[Server] 클라이언트 EOF (" + UserName + ") - 연결 종료");
                     try {
                         dos.close();
                         dis.close();
                         client_socket.close();
-                        logout();
-                        break;
-                    } catch (Exception ee) {
-                        break;
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
                     }
+                    logout();
+                    break;
+                } catch (IOException e) {
+                    System.out.println("[Server] run() IOException(" + UserName + "): " + e);
+                    e.printStackTrace();
+                    try {
+                        dos.close();
+                        dis.close();
+                        client_socket.close();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+                    logout();
+                    break;
                 }
             }
         }
-        // -------------------------------------------------------------
-        // [sendToRoom]
-        // - roomId에 해당하는 사람들에게만
-        //   "/roomMsg roomId [보낸이] 내용..." 형식으로 메시지 전송
-        // ------------------------------------------------------------
+
+        // 텍스트 방 브로드캐스트
         public void sendToRoom(String roomId, String sendText) {
             String[] memberNames = roomId.split(",");
-            // 전체 접속자(user_vc)를 돌면서
             for (int i = 0; i < user_vc.size(); i++) {
                 UserService user = user_vc.get(i);
-                if (user.UserName == null) {
-                    continue;
-                }
-                // 이 유저가 roomId에 포함된 멤버인지 검사
+                if (user.UserName == null) continue;
+
                 for (int j = 0; j < memberNames.length; j++) {
                     String name = memberNames[j].trim();
-                    if (name.isEmpty()) {
-                        continue;
-                    }
-                    // 방 멤버가 맞다면 그 유저에게만 /roomMsg 전송
+                    if (name.isEmpty()) continue;
+
                     if (user.UserName.equals(name)) {
                         user.WriteOne("/roomMsg " + roomId + " " + sendText);
                         break;
@@ -280,7 +308,8 @@ public class JavaChatServer {
                 }
             }
         }
-        // 채팅(/roomMsg ...) 말고, 프로토콜을 그대로 방 멤버에게 보내고 싶을 때 사용
+
+        // 행맨 등 프로토콜 그대로 브로드캐스트
         public void sendRawToRoom(String roomId, String msg) {
             String[] memberNames = roomId.split(",");
             for (int i = 0; i < user_vc.size(); i++) {
@@ -292,14 +321,48 @@ public class JavaChatServer {
                     if (name.isEmpty()) continue;
 
                     if (user.UserName.equals(name)) {
-                        user.WriteOne(msg);   // ★ 그대로 보냄 ("/hangStart ..." 등)
+                        user.WriteOne(msg);
                         break;
                     }
                 }
             }
         }
 
+        // 이미지 방 브로드캐스트 (동기화된 writeImagePacket 사용)
+        public void sendImageToRoom(String roomId, String sender, byte[] imgBytes) {
+            String[] memberNames = roomId.split(",");
+            for (int i = 0; i < user_vc.size(); i++) {
+                UserService user = user_vc.get(i);
+                if (user.UserName == null) continue;
 
+                for (int j = 0; j < memberNames.length; j++) {
+                    String name = memberNames[j].trim();
+                    if (name.isEmpty()) continue;
+
+                    if (user.UserName.equals(name)) {
+                        try {
+                            System.out.println("[Server] -> /roomImg 전송 to " + user.UserName +
+                                    " roomId=" + roomId + " sender=" + sender +
+                                    " len=" + imgBytes.length);
+
+                            user.writeImagePacket("/roomImg " + roomId + " " + sender, imgBytes);
+                        } catch (IOException e) {
+                            System.out.println("[Server] sendImageToRoom IOException to " +
+                                    user.UserName + ": " + e);
+                            e.printStackTrace();
+                            try {
+                                user.dos.close();
+                                user.dis.close();
+                                user.client_socket.close();
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                            user.logout();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
-

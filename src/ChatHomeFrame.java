@@ -37,11 +37,9 @@ public class ChatHomeFrame extends JFrame {
         setLocationRelativeTo(null); // 화면 중앙 배치 (원하면 빼도 됨)
 
         // 처음 메인화면 들어왔을 때 타이틀: friends
-        setTitle("friends");
+        setTitle("Friends");
 
         getContentPane().setLayout(new BorderLayout());
-        // 프레임의 컨텐트 영역 레이아웃을 BorderLayout으로.
-        // 북(NORTH)/서(WEST)/중앙(CENTER)/동(EAST)/남(SOUTH) 영역
         jp.setBackground(Color.WHITE);
         getContentPane().add(jp, BorderLayout.CENTER); // 중앙(CENTER)에 jp 패널 추가 (카드레이아웃)
 
@@ -66,7 +64,7 @@ public class ChatHomeFrame extends JFrame {
         btnFriends.setFocusPainted(false);
         btnFriends.setBackground(Color.WHITE);
         btnFriends.setForeground(Color.BLACK);
-        
+
         // btnChats 설정
         btnChats.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnChats.setMaximumSize(btnSize);
@@ -112,6 +110,7 @@ public class ChatHomeFrame extends JFrame {
 
         // 통신을 위한 소켓생성 -> 이걸 ClientNet에서 할거임
         clientNet = new ClientNet(username, Ip_adrr, Port_no, friendsPanel, chatsPanel);
-        chatsPanel.setClientNet(clientNet); // 통신용 파일이 만들어지고 나서야 패팅패널에 넘겨주기
+        chatsPanel.setClientNet(clientNet);      // 통신용 파일이 만들어지고 나서야 채팅패널에 넘겨주기
+        friendsPanel.setClientNet(clientNet);    // ★ 프로필 업데이트용으로 FriendsPanel에도 넘겨주기
     }
 }

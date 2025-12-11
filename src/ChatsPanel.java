@@ -41,8 +41,14 @@ public class ChatsPanel extends JPanel implements TabView {
         btnNewChat.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
 
-                // 현재 접속자 목록을 프렌즈패널에서 가져오기 빌리기?
-                String[] chatUsers = friendsPanel.getFriendsList(); // <- 메서드 이름 맞게
+                if (friendsPanel == null) {
+                    JOptionPane.showMessageDialog(ChatsPanel.this,
+                            "친구 목록을 불러올 수 없습니다.");
+                    return;
+                }
+
+                // 현재 접속자 목록을 프렌즈패널에서 가져오기
+                String[] chatUsers = friendsPanel.getFriendsList();
 
                 JFrame friendsFrame = new JFrame("대화 상대 추가");
                 friendsFrame.setSize(250, 300);
@@ -52,7 +58,7 @@ public class ChatsPanel extends JPanel implements TabView {
                 JLabel chatTitle = new JLabel("대화 상대 추가");
                 chatTitle.setFont(new Font("Dialog", Font.BOLD, 15));
 
-                // 유저 선택 패널 =============================== 채팅방 개설하기 위한 전 단계
+                // 유저 선택 패널 ===============================
                 JPanel centerPanel = new JPanel();
                 centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
                 centerPanel.setBackground(Color.WHITE);
@@ -60,19 +66,22 @@ public class ChatsPanel extends JPanel implements TabView {
                 centerPanel.add(Box.createVerticalStrut(8));
 
                 List<JCheckBox> checkBoxes = new ArrayList<JCheckBox>();
-                // 체크박스 형태로 유저 이름 모아두기
 
-                for (int i = 0; i < chatUsers.length; i++) { // 가져온 명단으로 체크박스 만들기
-                    String name = chatUsers[i];
-                    if (name == null) continue;
-                    String trimmed = name.trim();
+                for (int i = 0; i < chatUsers.length; i++) {
+                    String realName = chatUsers[i];
+                    if (realName == null) continue;
+                    String trimmed = realName.trim();
                     if (trimmed.isEmpty()) continue;
 
-                    JCheckBox box = new JCheckBox(trimmed);
-                    box.setBackground(Color.WHITE);
+                    String displayName = friendsPanel.getDisplayName(trimmed);
 
-                    checkBoxes.add(box);   // 데이터 모아두기
-                    centerPanel.add(box);  // 이제 저 리스트를 GUI에 붙이기
+                    JCheckBox box = new JCheckBox(displayName);
+                    box.setBackground(Color.WHITE);
+                    // ★ 실제 서버에서 쓰는 이름을 따로 저장
+                    box.putClientProperty("realName", trimmed);
+
+                    checkBoxes.add(box);
+                    centerPanel.add(box);
                 }
 
                 JScrollPane scroll = new JScrollPane(centerPanel);
@@ -101,30 +110,35 @@ public class ChatsPanel extends JPanel implements TabView {
                 btnOk.addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e) {
 
-                        List<String> selectedUsers = new ArrayList<>(); //선택된 유저 이름 담기
+                        List<String> selectedUsers = new ArrayList<>(); //선택된 유저 이름 담기 (실제 이름)
                         for (int i = 0; i < checkBoxes.size(); i++) {
                             JCheckBox cb = checkBoxes.get(i);
-                            if (cb.isSelected()) {               //  여기서 선택 여부 확인
-                                selectedUsers.add(cb.getText());
+                            if (cb.isSelected()) {
+                                String real = (String) cb.getClientProperty("realName");
+                                if (real != null && !real.trim().isEmpty()) {
+                                    selectedUsers.add(real.trim());
+                                }
                             }
                         }
                         if (selectedUsers.isEmpty()) {
-                            //선택 안 할시 경고 문구 띄우기
                             JOptionPane.showMessageDialog(friendsFrame, "한 명 이상 선택해 주세요.");
                             return;
                         }
                         if (clientNet != null) {
                             String me = clientNet.getUsername();
-                            if (!selectedUsers.contains(me)) {
+                            if (me != null && !me.trim().isEmpty() &&
+                                    !selectedUsers.contains(me)) {
                                 selectedUsers.add(me);
                             }
                         }
-                        // 일단 셀렉된 리스트 가지고 하나의 문자열 -> 방 제목 만들기 "손채림,박소연"
+                        // 셀렉된 리스트로 방 제목 만들기 "손채림,박소연"
                         String roomId = String.join(",", selectedUsers);
                         // Chats 탭 리스트에 방 추가하기 ( GUI )
                         addRoom(roomId);
-                        // 셀렉된 명단 리스트를 서버에게 보내기 ( 클라send 이용해서 )
-                        clientNet.SendMessage("/openRoom " + roomId);
+                        // 서버에게 방 열기
+                        if (clientNet != null) {
+                            clientNet.SendMessage("/openRoom " + roomId);
+                        }
                         friendsFrame.dispose();
                     }
                 });
@@ -144,10 +158,14 @@ public class ChatsPanel extends JPanel implements TabView {
         chatList.setFixedCellHeight(44);
         chatList.setFont(new Font("Dialog", Font.PLAIN, 14));
         chatList.setBackground(Color.WHITE);
+
+        // ★★★ 채팅방 리스트도 닉네임으로 보여주기 위한 렌더러 ★★★
+        chatList.setCellRenderer(new ChatRoomCellRenderer());
+
         chatList.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2) {  // 더블클릭하기
+                if (e.getClickCount() == 2) {  // 더블클릭
                     String roomId = chatList.getSelectedValue();
                     if (roomId != null && clientNet != null) {
                         clientNet.openRoom(roomId);
@@ -155,7 +173,6 @@ public class ChatsPanel extends JPanel implements TabView {
                 }
             }
         });
-
 
         JScrollPane scrollChat = new JScrollPane(chatList);
 
@@ -201,5 +218,51 @@ public class ChatsPanel extends JPanel implements TabView {
     // FriendsPanel을 주입하는 메소드
     public void setFriendsList(FriendsPanel friendsPanel) {
         this.friendsPanel = friendsPanel;
+    }
+
+    // ==================== 채팅방 리스트 렌더러 ====================
+    private class ChatRoomCellRenderer extends JLabel implements ListCellRenderer<String> {
+
+        public ChatRoomCellRenderer() {
+            setOpaque(true);
+            setFont(new Font("Dialog", Font.PLAIN, 14));
+        }
+
+        @Override
+        public Component getListCellRendererComponent(
+                JList<? extends String> list,
+                String value,
+                int index,
+                boolean isSelected,
+                boolean cellHasFocus
+        ) {
+            String roomId = value;
+            String displayText = roomId;
+
+            if (friendsPanel != null && roomId != null) {
+                String[] members = roomId.split(",");
+                java.util.List<String> names = new java.util.ArrayList<>();
+                for (String m : members) {
+                    if (m == null) continue;
+                    String trimmed = m.trim();
+                    if (trimmed.isEmpty()) continue;
+                    String disp = friendsPanel.getDisplayName(trimmed);
+                    names.add(disp);
+                }
+                if (!names.isEmpty()) {
+                    displayText = String.join(", ", names);
+                }
+            }
+
+            setText(displayText);
+
+            if (isSelected) {
+                setBackground(new Color(230, 230, 230));
+            } else {
+                setBackground(Color.WHITE);
+            }
+
+            return this;
+        }
     }
 }
