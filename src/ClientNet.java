@@ -1,6 +1,11 @@
+// ClientNet.java
 import javax.swing.ImageIcon;
+import javax.swing.SwingUtilities;
 import java.io.*;
 import java.net.Socket;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,7 +60,6 @@ public class ClientNet {
         public void run() {
             while (true) {
                 try {
-                    // ===== 항상 UTF 헤더 먼저 받음 =====
                     String msg = dis.readUTF();
                     if (msg == null) {
                         System.out.println("[Client] readUTF() -> null, 수신 종료");
@@ -66,17 +70,51 @@ public class ClientNet {
                     String cmd = msgs[0];
                     String rest = (msgs.length > 1) ? msgs[1] : "";
 
+                    // ===================== 프로필 업데이트(실시간) =====================
+                    if (cmd.equals("/profileUpdate")) {
+                        // 서버에서 오는 형태:
+                        // /profileUpdate user payload
+                        // payload 예: parksoyeon%09One+line+Introduction
+                        String[] parts = rest.split(" ", 2);
+                        if (parts.length < 2) continue;
+
+                        String user = parts[0].trim();
+                        String payload = parts[1];
+
+                        String decoded;
+                        try {
+                            decoded = URLDecoder.decode(payload, "UTF-8");
+                        } catch (Exception ex) {
+                            decoded = payload;
+                        }
+
+                        // name \t status
+                        String[] vals = decoded.split("\t", 2);
+                        String displayName = (vals.length >= 1) ? vals[0] : user;
+                        String status = (vals.length >= 2) ? vals[1] : "";
+
+                        System.out.println("[Client] RECV /profileUpdate user=" + user +
+                                " name=" + displayName + " status=" + status);
+
+                        if (friendsPanel != null) {
+                            SwingUtilities.invokeLater(() -> {
+                                friendsPanel.updateFriendProfile(user, displayName, status);
+                            });
+                        }
+                        continue;
+                    }
+
                     // -------------------- 유저 목록 --------------------
                     if (cmd.equals("/userName")) {
                         String[] names = rest.split(",");
                         if (friendsPanel != null) {
-                            friendsPanel.setUserList(names);
+                            SwingUtilities.invokeLater(() -> friendsPanel.setUserList(names));
                         }
 
                     } else if (cmd.equals("/newUser")) {
                         String newUser = rest;
                         if (friendsPanel != null) {
-                            friendsPanel.addUser(newUser);
+                            SwingUtilities.invokeLater(() -> friendsPanel.addUser(newUser));
                         }
 
                     // -------------------- 방 열기 -----------------------
@@ -124,7 +162,6 @@ public class ClientNet {
 
                     // ===================== 이미지 수신 =====================
                     } else if (cmd.equals("/roomImg")) {
-                        // rest = "roomId senderName"
                         String[] parts = rest.split(" ", 2);
                         if (parts.length < 2) {
                             System.out.println("[Client] /roomImg 형식 이상: " + rest);
@@ -134,7 +171,6 @@ public class ClientNet {
                         String roomId     = parts[0];
                         String senderName = parts[1];
 
-                        // 바로 뒤에 이미지 길이 + 바이트가 따라옴
                         int length = dis.readInt();
                         if (length <= 0) {
                             System.out.println("[Client] /roomImg length <= 0: " + length);
@@ -225,7 +261,6 @@ public class ClientNet {
 
     public void SendMessage(String msg) {
         try {
-            // System.out.println("[Client] SEND: " + msg);
             dos.writeUTF(msg);
             dos.flush();
         } catch (IOException e) {
@@ -244,7 +279,7 @@ public class ClientNet {
         return me;
     }
 
-    // ★★★ 여기! 실제 이름 → 내 클라 기준 표시 이름 ★★★
+    // 실제 이름 → 내 클라 기준 표시 이름
     public String getDisplayName(String name) {
         if (friendsPanel != null) {
             return friendsPanel.getDisplayName(name);
@@ -271,13 +306,8 @@ public class ClientNet {
             byte[] bytes = Files.readAllBytes(file.toPath());
             System.out.println("[Client] sendImage roomId=" + roomId + " size=" + bytes.length + " bytes");
 
-            // 1) 헤더 UTF
             dos.writeUTF("/roomImg " + roomId + " " + me);
-
-            // 2) 길이 int
             dos.writeInt(bytes.length);
-
-            // 3) 실제 데이터
             dos.write(bytes);
             dos.flush();
 
@@ -285,5 +315,24 @@ public class ClientNet {
             System.out.println("[Client] sendImage IOException: " + e);
             e.printStackTrace();
         }
+    }
+
+    // ================== 프로필 업데이트 전송 ==================
+    public void sendProfileUpdate(ProfileData myProfile) {
+        if (myProfile == null) return;
+
+        String name = myProfile.getName();
+        String status = myProfile.getStatusMessage();
+
+        if (name == null) name = "";
+        if (status == null) status = "";
+
+        String payload = name + "\t" + status;
+        String encoded = URLEncoder.encode(payload, StandardCharsets.UTF_8);
+
+        System.out.println("[Client] SEND /profileUpdate payload=" + payload + " encoded=" + encoded);
+
+        // 서버가 기대하는 형태: /profileUpdate user payload
+        SendMessage("/profileUpdate " + me + " " + encoded);
     }
 }

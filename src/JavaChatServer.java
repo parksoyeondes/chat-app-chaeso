@@ -1,3 +1,4 @@
+// JavaChatServer.java
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -61,7 +62,6 @@ public class JavaChatServer {
         private Vector<UserService> user_vc;
         private String UserName = "";
 
-        // 이 유저에 대한 출력 동기화용 락
         private final Object outLock = new Object();
 
         public UserService(Socket client_socket) {
@@ -75,11 +75,8 @@ public class JavaChatServer {
 
                 String line1 = dis.readUTF(); // "/login UserName"
                 String[] msg = line1.split(" ", 2);
-                if (msg.length >= 2) {
-                    UserName = msg[1].trim();
-                } else {
-                    UserName = "Unknown";
-                }
+                if (msg.length >= 2) UserName = msg[1].trim();
+                else UserName = "Unknown";
 
                 System.out.println("[Server] 로그인: " + UserName);
 
@@ -92,7 +89,6 @@ public class JavaChatServer {
             }
         }
 
-        // 전체 유저 목록 "A,B,C"
         public String getCurrentUserList() {
             StringBuilder builder = new StringBuilder();
             for (int i = 0; i < user_vc.size(); i++) {
@@ -111,7 +107,6 @@ public class JavaChatServer {
             System.out.println("[Server] 로그아웃: " + UserName);
         }
 
-        // synchronized UTF 패킷 전송
         private void writeUTFPacket(String msg) throws IOException {
             synchronized (outLock) {
                 dos.writeUTF(msg);
@@ -119,12 +114,11 @@ public class JavaChatServer {
             }
         }
 
-        // synchronized 이미지 패킷 전송
-        private void writeImagePacket(String header, byte[] imgBytes) throws IOException {
+        private void writeBinaryPacket(String header, byte[] bytes) throws IOException {
             synchronized (outLock) {
-                dos.writeUTF(header);              // "/roomImg roomId sender"
-                dos.writeInt(imgBytes.length);     // 길이
-                dos.write(imgBytes);               // 실제 데이터
+                dos.writeUTF(header);
+                dos.writeInt(bytes.length);
+                dos.write(bytes);
                 dos.flush();
             }
         }
@@ -163,12 +157,11 @@ public class JavaChatServer {
                     }
 
                     msg = msg.trim();
-                    String[] args = msg.split(" ", 3);
+                    String[] args = msg.split(" ", 4);
                     String cmd = args[0];
 
                     System.out.println("[Server] RECV(" + UserName + "): " + msg);
 
-                    // ---------------- 방 열기 ----------------
                     if (cmd.equals("/openRoom")) {
                         String roomId = args[1];
                         String[] memberNames = roomId.split(",");
@@ -187,53 +180,95 @@ public class JavaChatServer {
                         }
                     }
 
-                    // -------------- 텍스트 메시지 --------------
                     else if (cmd.equals("/roomMsg")) {
-                        if (args.length < 3) {
-                            WriteOne("사용법: /roomMsg [roomId] [message]\n");
-                            continue;
-                        }
+                        if (args.length < 3) continue;
                         String roomId = args[1];
-                        String body   = args[2];
+                        String body   = msg.split(" ", 3)[2];
 
                         String sendText = "[" + UserName + "] " + body;
                         sendToRoom(roomId, sendText);
                     }
 
-                    // -------------- 이미지 메시지 ---------------
                     else if (cmd.equals("/roomImg")) {
-                        if (args.length < 3) {
-                            System.out.println("[Server] /roomImg 인자 부족: " + msg);
-                            continue;
-                        }
+                        if (args.length < 3) continue;
 
                         String roomId = args[1];
                         String sender = args[2];
 
                         int length = dis.readInt();
-                        if (length <= 0) {
-                            System.out.println("[Server] /roomImg length <= 0 from " + UserName);
-                            continue;
-                        }
+                        if (length <= 0) continue;
 
                         byte[] imgBytes = new byte[length];
                         dis.readFully(imgBytes);
 
-                        System.out.println("[Server] /roomImg 수신: from=" + UserName +
-                                " roomId=" + roomId + " sender=" + sender +
-                                " len=" + length);
-
                         sendImageToRoom(roomId, sender, imgBytes);
                     }
 
-                    // -------------- 프로필 업데이트 --------------
+                    // ====== 프로필 메타(이름 상태메시지) ======
                     else if (cmd.equals("/profileUpdate")) {
-                        // 클라이언트에서 보낸 형식 그대로 전체 브로드캐스트
-                        // 형태: /profileUpdate userId displayName::status
+                        // /profileUpdate user payload
                         WriteAll(msg);
                     }
 
-                    // -------------- 행맨 시작 ------------------
+                    // ====== 프로필 사진 바이트 ======
+                    else if (cmd.equals("/profileImg")) {
+                        // /profileImg user ext
+                        if (args.length < 3) continue;
+                        String user = args[1];
+                        String ext  = args[2];
+
+                        int length = dis.readInt();
+                        if (length <= 0) continue;
+
+                        byte[] bytes = new byte[length];
+                        dis.readFully(bytes);
+
+                        // 전체에게 브로드캐스트
+                        for (int i = 0; i < user_vc.size(); i++) {
+                            UserService u = user_vc.get(i);
+                            try {
+                                u.writeBinaryPacket("/profileImg " + user + " " + ext, bytes);
+                            } catch (IOException e) {
+                                System.out.println("[Server] /profileImg send fail to " + u.UserName);
+                                try {
+                                    u.dos.close();
+                                    u.dis.close();
+                                    u.client_socket.close();
+                                } catch (Exception ex) { }
+                                u.logout();
+                            }
+                        }
+                    }
+
+                    // ====== 배경 사진 바이트 ======
+                    else if (cmd.equals("/profileBg")) {
+                        // /profileBg user ext
+                        if (args.length < 3) continue;
+                        String user = args[1];
+                        String ext  = args[2];
+
+                        int length = dis.readInt();
+                        if (length <= 0) continue;
+
+                        byte[] bytes = new byte[length];
+                        dis.readFully(bytes);
+
+                        for (int i = 0; i < user_vc.size(); i++) {
+                            UserService u = user_vc.get(i);
+                            try {
+                                u.writeBinaryPacket("/profileBg " + user + " " + ext, bytes);
+                            } catch (IOException e) {
+                                System.out.println("[Server] /profileBg send fail to " + u.UserName);
+                                try {
+                                    u.dos.close();
+                                    u.dis.close();
+                                    u.client_socket.close();
+                                } catch (Exception ex) { }
+                                u.logout();
+                            }
+                        }
+                    }
+
                     else if (cmd.equals("/hangStart")) {
                         if (args.length < 2) continue;
                         String roomId = args[1];
@@ -269,9 +304,7 @@ public class JavaChatServer {
                         dos.close();
                         dis.close();
                         client_socket.close();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
+                    } catch (IOException e1) { }
                     logout();
                     break;
                 } catch (IOException e) {
@@ -281,16 +314,13 @@ public class JavaChatServer {
                         dos.close();
                         dis.close();
                         client_socket.close();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
+                    } catch (IOException e1) { }
                     logout();
                     break;
                 }
             }
         }
 
-        // 텍스트 방 브로드캐스트
         public void sendToRoom(String roomId, String sendText) {
             String[] memberNames = roomId.split(",");
             for (int i = 0; i < user_vc.size(); i++) {
@@ -309,7 +339,6 @@ public class JavaChatServer {
             }
         }
 
-        // 행맨 등 프로토콜 그대로 브로드캐스트
         public void sendRawToRoom(String roomId, String msg) {
             String[] memberNames = roomId.split(",");
             for (int i = 0; i < user_vc.size(); i++) {
@@ -328,7 +357,6 @@ public class JavaChatServer {
             }
         }
 
-        // 이미지 방 브로드캐스트 (동기화된 writeImagePacket 사용)
         public void sendImageToRoom(String roomId, String sender, byte[] imgBytes) {
             String[] memberNames = roomId.split(",");
             for (int i = 0; i < user_vc.size(); i++) {
@@ -341,22 +369,13 @@ public class JavaChatServer {
 
                     if (user.UserName.equals(name)) {
                         try {
-                            System.out.println("[Server] -> /roomImg 전송 to " + user.UserName +
-                                    " roomId=" + roomId + " sender=" + sender +
-                                    " len=" + imgBytes.length);
-
-                            user.writeImagePacket("/roomImg " + roomId + " " + sender, imgBytes);
+                            user.writeBinaryPacket("/roomImg " + roomId + " " + sender, imgBytes);
                         } catch (IOException e) {
-                            System.out.println("[Server] sendImageToRoom IOException to " +
-                                    user.UserName + ": " + e);
-                            e.printStackTrace();
                             try {
                                 user.dos.close();
                                 user.dis.close();
                                 user.client_socket.close();
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
-                            }
+                            } catch (Exception ex) { }
                             user.logout();
                         }
                         break;
