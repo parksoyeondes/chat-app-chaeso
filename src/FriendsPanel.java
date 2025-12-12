@@ -308,8 +308,6 @@ public class FriendsPanel extends JPanel implements TabView {
         }
     }
 
-    @Override public String getTitle() { return "Friends"; }
-    @Override public void refresh() { }
     @Override public JComponent getComponent() { return this; }
 
     public void setUserList(String[] names) {

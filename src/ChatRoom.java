@@ -1,4 +1,3 @@
-// ChatRoom.java
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -6,9 +5,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
-
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+
+// 하나의 채팅방 창을 담당하는 클래스.
+//- roomId(예: "손채림,박소연") 기준으로 생성
 
 public class ChatRoom extends JFrame {
     // 이 채팅방의 고유 ID (예: "손채림,박소연")
@@ -36,6 +37,7 @@ public class ChatRoom extends JFrame {
     // 첨부 버튼
     private JButton btnAttach;
 
+    // ---------------------- 생성자 : 채팅방 창 만들기 ----------------------
     public ChatRoom(String roomId, ClientNet clientNet) {
         this.roomId = roomId;
         this.clientNet = clientNet;
@@ -138,7 +140,10 @@ public class ChatRoom extends JFrame {
         setVisible(true);
     }
 
-    // 방 제목을 닉네임 기준으로 만들어주기
+    // ---------------------- 방 제목 만들기 ----------------------
+    // 방 제목을 roomId로부터 만들어서 "나 자신을 제외한 다른 멤버들의 닉네임들"로 구성
+    //  - 나 포함 1:1 방이면 상대방 한 명만
+    //  - 그룹이면 여러 명을 콤마로 연결
     private String buildRoomTitle(String roomId) {
         if (clientNet == null || roomId == null) return roomId;
         String me = clientNet.getUsername();
@@ -164,10 +169,11 @@ public class ChatRoom extends JFrame {
         return String.join(", ", others);
     }
 
-    // ----------------------- 말풍선 패널 클래스 -----------------------
+    // -------------------------- 말풍선 패널 클래스 ----------------------------
+    // 텍스트 메시지를 말풍선 모양으로 그려주는 컴포넌트
     class MessageBubble extends JPanel {
-        private String text;
-        private boolean isMine;
+        private String text; // 실제 표시할 텍스트
+        private boolean isMine; // 내가 보낸 메시지인지 여부(오른쪽/녹색)
 
         public MessageBubble(String text, boolean isMine) {
             this.text = text;
@@ -176,6 +182,7 @@ public class ChatRoom extends JFrame {
             setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         }
 
+        // 레이아웃이 적당한 크기를 잡을 수 있도록 말풍선 크기 계산
         @Override
         public Dimension getPreferredSize() {
             FontMetrics fm = getFontMetrics(getFont());
@@ -191,6 +198,7 @@ public class ChatRoom extends JFrame {
             return new Dimension(bubbleWidth + 10, bubbleHeight + 10);
         }
 
+        // 실제 말풍선(둥근 사각형 + 꼬리) 그리기
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -214,12 +222,14 @@ public class ChatRoom extends JFrame {
             int x;
 
             if (isMine) {
+                // ----- 내가 보낸 메시지: 오른쪽 정렬 + 초록색 말풍선 -----
                 x = getWidth() - bubbleWidth - tailSize - 5;
 
                 g2.setColor(new Color(46, 139, 87));
                 g2.fillRoundRect(x, y, bubbleWidth, bubbleHeight, arc, arc);
 
                 int baseY = y + bubbleHeight - arc / 2;
+                // 오른쪽 꼬리(삼각형)
                 Polygon tail = new Polygon(
                         new int[]{x + bubbleWidth, x + bubbleWidth + tailSize, x + bubbleWidth},
                         new int[]{baseY, baseY + tailSize / 2, baseY + tailSize},
@@ -231,13 +241,16 @@ public class ChatRoom extends JFrame {
                 int textX = x + padding;
                 int textY = y + padding + fm.getAscent();
                 g2.drawString(text, textX, textY);
+
             } else {
+                //----- 상대가 보낸 메시지: 왼쪽 정렬 + 회색 말풍선 -------
                 x = tailSize + 5;
 
                 g2.setColor(new Color(230, 230, 230));
                 g2.fillRoundRect(x, y, bubbleWidth, bubbleHeight, arc, arc);
 
                 int baseY = y + bubbleHeight - arc / 2;
+                // 왼쪽 꼬리(삼각형)
                 Polygon tail = new Polygon(
                         new int[]{x, x - tailSize, x},
                         new int[]{baseY, baseY + tailSize / 2, baseY + tailSize},
@@ -255,28 +268,33 @@ public class ChatRoom extends JFrame {
         }
     }
 
-    // ----------------------------- 메시지 전송 -----------------------------
-
+    // ---------------- 메시지 전송 ----------------
     private void sendMessage() {
         String msg = txtInput.getText().trim();
         if (msg.isEmpty()) return;
 
+        // 서버에 "/roomMsg roomId 실제메시지" 형태로 전송
         clientNet.SendMessage("/roomMsg " + roomId + " " + msg);
         txtInput.setText("");
     }
 
-    // 서버에서 텍스트 메시지 수신 시 호출
+    // ---------------- 서버에서 텍스트 메시지 수신 시 호출 ----------------
+    // ClientNet.ListenNetwork에서 /roomMsg 수신 → ChatRoom.appendMessage 호출
     public void appendMessage(String senderName, String body) {
+        // senderName이 내 아이디와 같으면 내가 보낸 메시지
         boolean isMine = senderName != null && senderName.equals(clientNet.getUsername());
 
+        // body가 이모티콘 코드(:emoj1: 등)이면 이모티콘으로 처리
         ImageIcon emoji = emojiMap.get(body);
         if (emoji != null) {
             appendEmoji(isMine, emoji);
             return;
         }
 
+        // 실제 말풍선에 보여줄 문자열 만들기
         String displayMsg;
         if (isMine) {
+            // 내가 보낸 메시지는 이름 없이 본문만
             displayMsg = body;
         } else {
             String showName = senderName;
@@ -286,8 +304,9 @@ public class ChatRoom extends JFrame {
             displayMsg = "[" + showName + "] " + body;
         }
 
+        // 말풍선 컴포넌트 생성
         MessageBubble bubble = new MessageBubble(displayMsg, isMine);
-
+        // 한 줄에 말풍선 하나 올려놓을 패널 (오른쪽/왼쪽 정렬용)
         JPanel line = new JPanel(new BorderLayout());
         line.setOpaque(false);
         line.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
@@ -298,23 +317,29 @@ public class ChatRoom extends JFrame {
             line.add(bubble, BorderLayout.WEST);
         }
 
+        // 가로 폭은 최대, 세로는 내용만큼
         Dimension pref = line.getPreferredSize();
         line.setMaximumSize(new Dimension(Integer.MAX_VALUE, pref.height));
 
+        // messagePanel에 추가 → UI 갱신
         messagePanel.add(line);
         messagePanel.revalidate();
         messagePanel.repaint();
 
+        // 항상 스크롤을 제일 아래로 내리기
         SwingUtilities.invokeLater(() -> {
             JScrollBar bar = scrollPane.getVerticalScrollBar();
             bar.setValue(bar.getMaximum());
         });
     }
 
+    // 이모티콘 보내기 : 텍스트 코드(:emoj1:)를 메시지로 보내고,
+    // 받은 쪽에서 이 코드를 emojiMap에서 찾아서 이미지로 표시
     private void sendEmoticon(String code) {
         clientNet.SendMessage("/roomMsg " + roomId + " " + code);
     }
 
+    // ---------------- 이모티콘(이미지) 말풍선 추가 ----------------
     private void appendEmoji(boolean isMine, ImageIcon icon) {
         JLabel label = new JLabel(icon);
 
@@ -363,7 +388,7 @@ public class ChatRoom extends JFrame {
 
     // 서버에서 받은 이미지 그리기
     public void appendImage(boolean isMine, ImageIcon icon) {
-        // ★ 여기서 채팅방 폭에 맞게 스케일링
+        // 여기서 채팅방 폭에 맞게 스케일링
         int viewportWidth = scrollPane.getViewport().getWidth();
         if (viewportWidth <= 0) {
             // 레이아웃이 아직 안 잡힌 타이밍일 수 있으니 기본값
@@ -424,8 +449,9 @@ public class ChatRoom extends JFrame {
         return new ImageIcon(scaled);
     }
 
-    // -------------------------- 이모지 선택창 --------------------------
+    // ------------------- 이모지 선택창 ---------------------
     private void showEmojiPicker() {
+        // 처음 호출 시에만 다이얼로그 구성
         if (emojiDialog == null) {
             emojiDialog = new JDialog(this, "Emoji", false);
             emojiDialog.setLayout(new GridLayout(2, 4, 5, 5));
@@ -446,6 +472,7 @@ public class ChatRoom extends JFrame {
                 }
 
                 btn.setMargin(new Insets(2, 2, 2, 2));
+                // 클릭하면 해당 코드(:emoj1:)를 메시지로 전송
                 btn.addActionListener(e -> sendEmoticon(code));
 
                 emojiDialog.add(btn);
@@ -453,6 +480,7 @@ public class ChatRoom extends JFrame {
             emojiDialog.pack();
         }
 
+        // 채팅방 창 근처에 이모티콘 창 위치시키기
         Point p = this.getLocationOnScreen();
         emojiDialog.setLocation(
                 p.x + 50,
@@ -461,6 +489,7 @@ public class ChatRoom extends JFrame {
         emojiDialog.setVisible(true);
     }
 
+    // 리소스에서 이모티콘 아이콘을 읽고 지정된 크기로 스케일링
     private ImageIcon loadEmoji(String path, int size) {
         java.net.URL url = getClass().getResource(path);
         if (url == null) {
@@ -473,28 +502,33 @@ public class ChatRoom extends JFrame {
         return new ImageIcon(scaled);
     }
 
-    //----------------------------  행맨 게임 -----------------------------------
-
+    // ====================== 행맨 게임 ========================
+    // 서버에서 "/hangStart roomId wordIdx themeIdx" 수신 시 호출됨
     public void openHangman(int wordIdx, int themeIdx) {
+        // 아직 행맨 다이얼로그를 만든 적이 없다면 처음 한 번 생성
         if (hangmanDialog == null) {
+            // 네트워크 모드 true, 그리고 네트워크로 이벤트 보내는 리스너 주입
             hangmanPanel = new HangmanPanel(
                     new HangmanPanel.HangmanNetListener() {
                         @Override
                         public void onLetterChosen(char ch) {
+                            // 사용자가 행맨에서 글자를 고르면 서버에 /hangGuess 전송
                             clientNet.SendMessage("/hangGuess " + roomId + " " + ch);
                         }
 
                         @Override
                         public void onGameEnd() {
+                            // 게임이 끝나면 서버에 /hangEnd 전송 → 방 전체 종료
                             clientNet.SendMessage("/hangEnd " + roomId);
                         }
 
                         @Override
                         public void onRestartRequested() {
+                            // 재시작 요청 시 서버에 /hangStart 전송 → 서버가 다시 랜덤 단어 뽑음
                             clientNet.SendMessage("/hangStart " + roomId);
                         }
                     },
-                    true // ★ 네트워크 모드
+                    true
             );
 
             hangmanDialog = new JDialog(this, "Hangman - " + roomId, false);
@@ -504,20 +538,20 @@ public class ChatRoom extends JFrame {
             hangmanDialog.setLocationRelativeTo(this);
         }
 
-        // ★ 여기서 딱 한 번만, 매번 서버가 준 인덱스로 새 게임 시작
+        // 서버에서 내려준 인덱스(wordIdx, themeIdx)로 새 게임 시작
         hangmanPanel.startNewGameFromIndex(wordIdx, themeIdx);
-
         hangmanDialog.setVisible(true);
         hangmanDialog.toFront();
     }
 
-
+    // "/hangGuess roomId ch" 수신 시: 내 로컬 행맨 패널에 적용
     public void applyHangmanGuess(char ch) {
         if (hangmanPanel != null) {
             hangmanPanel.applyGuessFromNetwork(ch);
         }
     }
 
+    // "/hangEnd roomId" 수신 시: 행맨 창 닫기
     public void closeHangman() {
         if (hangmanDialog != null) {
             hangmanDialog.setVisible(false);
