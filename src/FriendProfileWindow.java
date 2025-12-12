@@ -13,34 +13,34 @@ public class FriendProfileWindow extends JDialog {
     private static final int HEADER_HEIGHT = 150;
 
     private final ProfileData profileData;
-    private final String realName;
-    private String displayName;
+    private final String realName;              // 수정함
+    private String displayName;                 // 수정함
 
-    private final Consumer<String> onNameSaved;
+    private final Consumer<String> onNameSaved; // 수정함
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cardPanel = new JPanel(cardLayout);
 
     private JLabel viewProfileImageLabel;
-    private JLabel viewDisplayNameLabel;
+    private JLabel viewDisplayNameLabel;        // 수정함
     private JLabel viewStatusLabel;
 
     private JLabel editProfileImageLabel;
-    private JTextField txtDisplayName;
+    private JTextField txtDisplayName;          // 수정함
     private JLabel editStatusLabel;
 
     private boolean editing = false;
 
     public FriendProfileWindow(Frame owner,
                                ProfileData profileData,
-                               String realName,
-                               String displayName,
-                               Consumer<String> onNameSaved) {
+                               String realName,                 // 수정함
+                               String displayName,              // 수정함
+                               Consumer<String> onNameSaved) {  // 수정함
         super(owner, "Friend Profile", true);
         this.profileData = profileData;
-        this.realName = realName;
-        this.displayName = (displayName == null || displayName.isEmpty()) ? realName : displayName;
-        this.onNameSaved = onNameSaved;
+        this.realName = realName; // 수정함
+        this.displayName = (displayName == null || displayName.isEmpty()) ? realName : displayName; // 수정함
+        this.onNameSaved = onNameSaved; // 수정함
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(300, 400);
@@ -85,7 +85,7 @@ public class FriendProfileWindow extends JDialog {
         center.add(viewProfileImageLabel);
         center.add(Box.createVerticalStrut(18));
 
-        viewDisplayNameLabel = new JLabel(displayName, SwingConstants.CENTER);
+        viewDisplayNameLabel = new JLabel(displayName, SwingConstants.CENTER); // 수정함
         viewDisplayNameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         viewDisplayNameLabel.setFont(new Font("Dialog", Font.BOLD, 18));
         center.add(viewDisplayNameLabel);
@@ -119,9 +119,9 @@ public class FriendProfileWindow extends JDialog {
         btnEdit.setBackground(new Color(200, 200, 200));
         btnEdit.setPreferredSize(new Dimension(80, 32));
         btnEdit.setFocusPainted(false);
-        btnEdit.addActionListener(e -> {
+        btnEdit.addActionListener(e -> { // 수정함
             editing = true;
-            enterEditMode();
+            enterEditMode(); // 수정함
             cardLayout.show(cardPanel, CARD_EDIT);
             cardPanel.repaint();
         });
@@ -129,12 +129,12 @@ public class FriendProfileWindow extends JDialog {
         bottom.add(btnEdit);
         card.add(bottom, BorderLayout.SOUTH);
 
-        viewDisplayNameLabel.addMouseListener(new java.awt.event.MouseAdapter() {
+        viewDisplayNameLabel.addMouseListener(new java.awt.event.MouseAdapter() { // 수정함
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2) {
+                if (e.getClickCount() == 2) { // 수정함
                     editing = true;
-                    enterEditMode();
+                    enterEditMode(); // 수정함
                     cardLayout.show(cardPanel, CARD_EDIT);
                     cardPanel.repaint();
                 }
@@ -174,7 +174,7 @@ public class FriendProfileWindow extends JDialog {
         center.add(editProfileImageLabel);
         center.add(Box.createVerticalStrut(18));
 
-        txtDisplayName = new JTextField(displayName);
+        txtDisplayName = new JTextField(displayName); // 수정함
         txtDisplayName.setHorizontalAlignment(JTextField.CENTER);
         txtDisplayName.setBorder(null);
         txtDisplayName.setFont(new Font("Dialog", Font.BOLD, 18));
@@ -212,7 +212,7 @@ public class FriendProfileWindow extends JDialog {
         btnCancel.setPreferredSize(new Dimension(80, 32));
         btnCancel.setBackground(new Color(210, 210, 210));
         btnCancel.setFocusPainted(false);
-        btnCancel.addActionListener(e -> {
+        btnCancel.addActionListener(e -> { // 수정함
             editing = false;
             cardLayout.show(cardPanel, CARD_VIEW);
             cardPanel.repaint();
@@ -223,14 +223,14 @@ public class FriendProfileWindow extends JDialog {
         btnSave.setBackground(new Color(60, 179, 113));
         btnSave.setForeground(Color.BLACK);
         btnSave.setFocusPainted(false);
-        btnSave.addActionListener(e -> {
-            String newName = txtDisplayName.getText().trim();
-            if (newName.isEmpty()) newName = realName;
-            displayName = newName;
+        btnSave.addActionListener(e -> { // 수정함
+            String newName = txtDisplayName.getText().trim(); // 수정함
+            if (newName.isEmpty()) newName = realName;        // 수정함
+            displayName = newName;                            // 수정함
 
-            if (onNameSaved != null) onNameSaved.accept(displayName);
+            if (onNameSaved != null) onNameSaved.accept(displayName); // 수정함
 
-            viewDisplayNameLabel.setText(displayName);
+            viewDisplayNameLabel.setText(displayName); // 수정함
 
             editing = false;
             cardLayout.show(cardPanel, CARD_VIEW);
@@ -253,8 +253,8 @@ public class FriendProfileWindow extends JDialog {
         cardPanel.add(card, CARD_EDIT);
     }
 
-    private void enterEditMode() {
-        if (txtDisplayName != null) txtDisplayName.setText(displayName);
+    private void enterEditMode() { // 수정함
+        if (txtDisplayName != null) txtDisplayName.setText(displayName); // 수정함
     }
 
     private ImageIcon loadImageIcon(String path, int w, int h) {

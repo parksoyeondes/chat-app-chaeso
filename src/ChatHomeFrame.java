@@ -31,26 +31,25 @@ public class ChatHomeFrame extends JFrame {
         // 채팅탭 + 유저 로그인 탭
         friendsPanel = new FriendsPanel(username);
         chatsPanel   = new ChatsPanel();
-        chatsPanel.setFriendsList(friendsPanel);
+        chatsPanel.setFriendsList(friendsPanel); // 수정함
 
         // 기본 배경 깔기
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); //창의 X 버튼을 누르면 프로세스까지 종료하도록 설정.
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(300, 400);
-        setLocationRelativeTo(null); // 화면 중앙 배치 (원하면 빼도 됨)
+        setLocationRelativeTo(null);
 
-        // 처음 메인화면 들어왔을 때 타이틀: friends
         setTitle("Friends");
 
         getContentPane().setLayout(new BorderLayout());
         jp.setBackground(Color.WHITE);
-        getContentPane().add(jp, BorderLayout.CENTER); // 중앙(CENTER)에 jp 패널 추가 (카드레이아웃)
+        getContentPane().add(jp, BorderLayout.CENTER);
 
         // 왼쪽 사이드바
         JPanel left = new JPanel();
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
         left.setPreferredSize(new Dimension(80, 0));
         left.setBackground(new Color(220, 220, 220));
-        left.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8)); // 안쪽 여백
+        left.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
 
         getContentPane().add(left, BorderLayout.WEST);
 
@@ -58,7 +57,6 @@ public class ChatHomeFrame extends JFrame {
         JButton btnChats   = new JButton("💬");
         Dimension btnSize = new Dimension(48, 34);
 
-        // btnFriends 설정
         btnFriends.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnFriends.setMaximumSize(btnSize);
         btnFriends.setPreferredSize(btnSize);
@@ -67,7 +65,6 @@ public class ChatHomeFrame extends JFrame {
         btnFriends.setBackground(Color.WHITE);
         btnFriends.setForeground(Color.BLACK);
 
-        // btnChats 설정
         btnChats.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnChats.setMaximumSize(btnSize);
         btnChats.setPreferredSize(btnSize);
@@ -76,7 +73,6 @@ public class ChatHomeFrame extends JFrame {
         btnChats.setBackground(Color.WHITE);
         btnChats.setForeground(Color.BLACK);
 
-        // 왼쪽 버튼 순서: 친구 → 채팅
         left.add(btnFriends);
         left.add(Box.createVerticalStrut(12));
         left.add(btnChats);
@@ -86,12 +82,10 @@ public class ChatHomeFrame extends JFrame {
         jp.add(friendsPanel.getComponent(), CARD_friends);
         jp.add(chatsPanel.getComponent(),   CARD_chat);
 
-        // 버튼 → 카드 전환
         btnChats.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 cardLayout.show(jp, CARD_chat);
                 chatsPanel.refresh();
-                // 채팅탭일 때 타이틀
                 setTitle("Chats");
             }
         });
@@ -100,19 +94,17 @@ public class ChatHomeFrame extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 cardLayout.show(jp, CARD_friends);
                 friendsPanel.refresh();
-                // 친구탭일 때 타이틀
                 setTitle("Friends");
             }
         });
 
-        // 처음 화면: 친구탭 보이게
         cardLayout.show(jp, CARD_friends);
 
-        setVisible(true); // GUI 보이게
+        setVisible(true);
 
         // 통신을 위한 소켓생성 -> 이걸 ClientNet에서 할거임
         clientNet = new ClientNet(username, Ip_adrr, Port_no, friendsPanel, chatsPanel);
-        chatsPanel.setClientNet(clientNet);      // 통신용 파일이 만들어지고 나서야 채팅패널에 넘겨주기
-        friendsPanel.setClientNet(clientNet);    // ★ 프로필 업데이트용으로 FriendsPanel에도 넘겨주기
+        chatsPanel.setClientNet(clientNet);    // 수정함
+        friendsPanel.setClientNet(clientNet);  // 수정함
     }
 }

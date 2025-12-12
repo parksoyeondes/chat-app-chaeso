@@ -11,8 +11,8 @@ public class ChatsPanel extends JPanel implements TabView {
 
     private DefaultListModel<String> model = new DefaultListModel<>();
     private JList<String> chatList = new JList<>(model);
-    private FriendsPanel friendsPanel; // 유저 리스트 패널에서 프렌즈리스트 가져올거임
-    private ClientNet clientNet;
+    private FriendsPanel friendsPanel; // 유저 리스트 패널에서 프렌즈리스트 가져올거임 // 수정함
+    private ClientNet clientNet; // 수정함
 
     public ChatsPanel() {
 
@@ -41,14 +41,14 @@ public class ChatsPanel extends JPanel implements TabView {
         btnNewChat.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
 
-                if (friendsPanel == null) {
-                    JOptionPane.showMessageDialog(ChatsPanel.this,
-                            "친구 목록을 불러올 수 없습니다.");
-                    return;
+                if (friendsPanel == null) { // 수정함
+                    JOptionPane.showMessageDialog(ChatsPanel.this, // 수정함
+                            "친구 목록을 불러올 수 없습니다."); // 수정함
+                    return; // 수정함
                 }
 
                 // 현재 접속자 목록을 프렌즈패널에서 가져오기
-                String[] chatUsers = friendsPanel.getFriendsList();
+                String[] chatUsers = friendsPanel.getFriendsList(); // 수정함
 
                 JFrame friendsFrame = new JFrame("대화 상대 추가");
                 friendsFrame.setSize(250, 300);
@@ -73,12 +73,12 @@ public class ChatsPanel extends JPanel implements TabView {
                     String trimmed = realName.trim();
                     if (trimmed.isEmpty()) continue;
 
-                    String displayName = friendsPanel.getDisplayName(trimmed);
+                    String displayName = friendsPanel.getDisplayName(trimmed); // 수정함
 
-                    JCheckBox box = new JCheckBox(displayName);
+                    JCheckBox box = new JCheckBox(displayName); // 수정함
                     box.setBackground(Color.WHITE);
                     // ★ 실제 서버에서 쓰는 이름을 따로 저장
-                    box.putClientProperty("realName", trimmed);
+                    box.putClientProperty("realName", trimmed); // 수정함
 
                     checkBoxes.add(box);
                     centerPanel.add(box);
@@ -111,34 +111,39 @@ public class ChatsPanel extends JPanel implements TabView {
                     public void actionPerformed(ActionEvent e) {
 
                         List<String> selectedUsers = new ArrayList<>(); //선택된 유저 이름 담기 (실제 이름)
+
                         for (int i = 0; i < checkBoxes.size(); i++) {
                             JCheckBox cb = checkBoxes.get(i);
                             if (cb.isSelected()) {
-                                String real = (String) cb.getClientProperty("realName");
+                                String real = (String) cb.getClientProperty("realName"); // 수정함
                                 if (real != null && !real.trim().isEmpty()) {
-                                    selectedUsers.add(real.trim());
+                                    selectedUsers.add(real.trim()); // 수정함
                                 }
                             }
                         }
-                        if (selectedUsers.isEmpty()) {
-                            JOptionPane.showMessageDialog(friendsFrame, "한 명 이상 선택해 주세요.");
-                            return;
+
+                        if (selectedUsers.isEmpty()) { // 수정함
+                            JOptionPane.showMessageDialog(friendsFrame, "한 명 이상 선택해 주세요."); // 수정함
+                            return; // 수정함
                         }
-                        if (clientNet != null) {
-                            String me = clientNet.getUsername();
+
+                        if (clientNet != null) { // 수정함
+                            String me = clientNet.getUsername(); // 수정함
                             if (me != null && !me.trim().isEmpty() &&
-                                    !selectedUsers.contains(me)) {
-                                selectedUsers.add(me);
+                                    !selectedUsers.contains(me)) { // 수정함
+                                selectedUsers.add(me); // 수정함
                             }
                         }
+
                         // 셀렉된 리스트로 방 제목 만들기 "손채림,박소연"
-                        String roomId = String.join(",", selectedUsers);
+                        String roomId = String.join(",", selectedUsers); // 수정함
                         // Chats 탭 리스트에 방 추가하기 ( GUI )
-                        addRoom(roomId);
+                        addRoom(roomId); // 수정함
                         // 서버에게 방 열기
-                        if (clientNet != null) {
-                            clientNet.SendMessage("/openRoom " + roomId);
+                        if (clientNet != null) { // 수정함
+                            clientNet.SendMessage("/openRoom " + roomId); // 수정함
                         }
+
                         friendsFrame.dispose();
                     }
                 });
@@ -160,15 +165,15 @@ public class ChatsPanel extends JPanel implements TabView {
         chatList.setBackground(Color.WHITE);
 
         // ★★★ 채팅방 리스트도 닉네임으로 보여주기 위한 렌더러 ★★★
-        chatList.setCellRenderer(new ChatRoomCellRenderer());
+        chatList.setCellRenderer(new ChatRoomCellRenderer()); // 수정함
 
         chatList.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (e.getClickCount() == 2) {  // 더블클릭
                     String roomId = chatList.getSelectedValue();
-                    if (roomId != null && clientNet != null) {
-                        clientNet.openRoom(roomId);
+                    if (roomId != null && clientNet != null) { // 수정함
+                        clientNet.openRoom(roomId); // 수정함
                     }
                 }
             }
@@ -211,19 +216,19 @@ public class ChatsPanel extends JPanel implements TabView {
         }
     }
 
-    public void setClientNet(ClientNet clientNet) {
-        this.clientNet = clientNet;
+    public void setClientNet(ClientNet clientNet) { // 수정함
+        this.clientNet = clientNet; // 수정함
     }
 
     // FriendsPanel을 주입하는 메소드
-    public void setFriendsList(FriendsPanel friendsPanel) {
-        this.friendsPanel = friendsPanel;
+    public void setFriendsList(FriendsPanel friendsPanel) { // 수정함
+        this.friendsPanel = friendsPanel; // 수정함
     }
 
     // ==================== 채팅방 리스트 렌더러 ====================
-    private class ChatRoomCellRenderer extends JLabel implements ListCellRenderer<String> {
+    private class ChatRoomCellRenderer extends JLabel implements ListCellRenderer<String> { // 수정함
 
-        public ChatRoomCellRenderer() {
+        public ChatRoomCellRenderer() { // 수정함
             setOpaque(true);
             setFont(new Font("Dialog", Font.PLAIN, 14));
         }
@@ -239,22 +244,22 @@ public class ChatsPanel extends JPanel implements TabView {
             String roomId = value;
             String displayText = roomId;
 
-            if (friendsPanel != null && roomId != null) {
-                String[] members = roomId.split(",");
-                java.util.List<String> names = new java.util.ArrayList<>();
-                for (String m : members) {
+            if (friendsPanel != null && roomId != null) { // 수정함
+                String[] members = roomId.split(","); // 수정함
+                java.util.List<String> names = new java.util.ArrayList<>(); // 수정함
+                for (String m : members) { // 수정함
                     if (m == null) continue;
-                    String trimmed = m.trim();
+                    String trimmed = m.trim(); // 수정함
                     if (trimmed.isEmpty()) continue;
-                    String disp = friendsPanel.getDisplayName(trimmed);
-                    names.add(disp);
+                    String disp = friendsPanel.getDisplayName(trimmed); // 수정함
+                    names.add(disp); // 수정함
                 }
-                if (!names.isEmpty()) {
-                    displayText = String.join(", ", names);
+                if (!names.isEmpty()) { // 수정함
+                    displayText = String.join(", ", names); // 수정함
                 }
             }
 
-            setText(displayText);
+            setText(displayText); // 수정함
 
             if (isSelected) {
                 setBackground(new Color(230, 230, 230));

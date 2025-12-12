@@ -62,7 +62,7 @@ public class JavaChatServer {
         private Vector<UserService> user_vc;
         private String UserName = "";
 
-        private final Object outLock = new Object();
+        private final Object outLock = new Object(); // 수정함
 
         public UserService(Socket client_socket) {
             this.client_socket = client_socket;
@@ -107,25 +107,25 @@ public class JavaChatServer {
             System.out.println("[Server] 로그아웃: " + UserName);
         }
 
-        private void writeUTFPacket(String msg) throws IOException {
-            synchronized (outLock) {
-                dos.writeUTF(msg);
-                dos.flush();
-            }
-        }
+        private void writeUTFPacket(String msg) throws IOException { // 수정함
+            synchronized (outLock) { // 수정함
+                dos.writeUTF(msg);   // 수정함
+                dos.flush();         // 수정함
+            } // 수정함
+        } // 수정함
 
-        private void writeBinaryPacket(String header, byte[] bytes) throws IOException {
-            synchronized (outLock) {
-                dos.writeUTF(header);
-                dos.writeInt(bytes.length);
-                dos.write(bytes);
-                dos.flush();
-            }
-        }
+        private void writeBinaryPacket(String header, byte[] bytes) throws IOException { // 수정함
+            synchronized (outLock) { // 수정함
+                dos.writeUTF(header);        // 수정함
+                dos.writeInt(bytes.length);  // 수정함
+                dos.write(bytes);            // 수정함
+                dos.flush();                 // 수정함
+            } // 수정함
+        } // 수정함
 
         public void WriteOne(String msg) {
             try {
-                writeUTFPacket(msg);
+                writeUTFPacket(msg); // 수정함
             } catch (IOException e) {
                 System.out.println("[Server] WriteOne IOException(" + UserName + "): " + e);
                 e.printStackTrace();
@@ -227,7 +227,7 @@ public class JavaChatServer {
                         for (int i = 0; i < user_vc.size(); i++) {
                             UserService u = user_vc.get(i);
                             try {
-                                u.writeBinaryPacket("/profileImg " + user + " " + ext, bytes);
+                                u.writeBinaryPacket("/profileImg " + user + " " + ext, bytes); // 수정함
                             } catch (IOException e) {
                                 System.out.println("[Server] /profileImg send fail to " + u.UserName);
                                 try {
@@ -256,7 +256,7 @@ public class JavaChatServer {
                         for (int i = 0; i < user_vc.size(); i++) {
                             UserService u = user_vc.get(i);
                             try {
-                                u.writeBinaryPacket("/profileBg " + user + " " + ext, bytes);
+                                u.writeBinaryPacket("/profileBg " + user + " " + ext, bytes); // 수정함
                             } catch (IOException e) {
                                 System.out.println("[Server] /profileBg send fail to " + u.UserName);
                                 try {
@@ -369,7 +369,7 @@ public class JavaChatServer {
 
                     if (user.UserName.equals(name)) {
                         try {
-                            user.writeBinaryPacket("/roomImg " + roomId + " " + sender, imgBytes);
+                            user.writeBinaryPacket("/roomImg " + roomId + " " + sender, imgBytes); // 수정함
                         } catch (IOException e) {
                             try {
                                 user.dos.close();

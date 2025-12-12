@@ -26,10 +26,10 @@ public class ProfileWindow extends JDialog {
     private JTextField txtName;
     private JTextField txtStatus;
 
-    private String tempProfileImagePath;
-    private String tempBackgroundImagePath;
+    private String tempProfileImagePath;      // 수정함
+    private String tempBackgroundImagePath;   // 수정함
 
-    private boolean editing = false;
+    private boolean editing = false;          // 수정함
 
     public ProfileWindow(Frame owner, ProfileData profileData, Runnable onSavedCallback) {
         super(owner, "My Profile", true);
@@ -53,17 +53,17 @@ public class ProfileWindow extends JDialog {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(Color.WHITE);
 
-        BackgroundPanel mainArea = new BackgroundPanel();
-        mainArea.setOpaque(false);
-        mainArea.setLayout(new BoxLayout(mainArea, BoxLayout.Y_AXIS));
-        mainArea.setBorder(new EmptyBorder(60, 20, 20, 20));
+        BackgroundPanel mainArea = new BackgroundPanel(); // 수정함
+        mainArea.setOpaque(false);                        // 수정함
+        mainArea.setLayout(new BoxLayout(mainArea, BoxLayout.Y_AXIS)); // 수정함
+        mainArea.setBorder(new EmptyBorder(60, 20, 20, 20));           // 수정함
 
         viewProfileImageLabel = new JLabel();
         viewProfileImageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         ImageIcon icon = null;
-        if (profileData.getProfileImageIcon() != null) {
-            icon = ProfileData.scaleIcon(profileData.getProfileImageIcon(), 90, 90);
+        if (profileData.getProfileImageIcon() != null) { // 수정함
+            icon = ProfileData.scaleIcon(profileData.getProfileImageIcon(), 90, 90); // 수정함
         } else {
             icon = loadImageIcon(profileData.getProfileImagePath(), 90, 90);
         }
@@ -103,7 +103,7 @@ public class ProfileWindow extends JDialog {
         mainArea.add(viewStatusLabel);
         mainArea.add(Box.createVerticalStrut(30));
 
-        card.add(mainArea, BorderLayout.CENTER);
+        card.add(mainArea, BorderLayout.CENTER); // 수정함
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         bottom.setBackground(Color.WHITE);
@@ -113,11 +113,11 @@ public class ProfileWindow extends JDialog {
         btnEdit.setBackground(new Color(200, 200, 200));
         btnEdit.setPreferredSize(new Dimension(80, 32));
         btnEdit.setFocusPainted(false);
-        btnEdit.addActionListener(e -> {
-            editing = true;
-            enterEditModeFromModel();
-            cardLayout.show(cardPanel, CARD_EDIT);
-            cardPanel.repaint();
+        btnEdit.addActionListener(e -> { // 수정함
+            editing = true;              // 수정함
+            enterEditModeFromModel();    // 수정함
+            cardLayout.show(cardPanel, CARD_EDIT); // 수정함
+            cardPanel.repaint();         // 수정함
         });
         bottom.add(btnEdit);
 
@@ -129,27 +129,27 @@ public class ProfileWindow extends JDialog {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(Color.WHITE);
 
-        BackgroundPanel mainArea = new BackgroundPanel();
-        mainArea.setOpaque(false);
-        mainArea.setLayout(new BoxLayout(mainArea, BoxLayout.Y_AXIS));
-        mainArea.setBorder(new EmptyBorder(60, 20, 20, 20));
+        BackgroundPanel mainArea = new BackgroundPanel(); // 수정함
+        mainArea.setOpaque(false);                        // 수정함
+        mainArea.setLayout(new BoxLayout(mainArea, BoxLayout.Y_AXIS)); // 수정함
+        mainArea.setBorder(new EmptyBorder(60, 20, 20, 20));           // 수정함
 
-        mainArea.addMouseListener(new MouseAdapter() {
+        mainArea.addMouseListener(new MouseAdapter() { // 수정함
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (!editing) return;
-                if (e.getY() <= HEADER_HEIGHT) chooseImageFile(false);
+                if (!editing) return;                 // 수정함
+                if (e.getY() <= HEADER_HEIGHT) chooseImageFile(false); // 수정함
             }
         });
 
         editProfileImageLabel = new JLabel();
         editProfileImageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         editProfileImageLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        editProfileImageLabel.addMouseListener(new MouseAdapter() {
+        editProfileImageLabel.addMouseListener(new MouseAdapter() { // 수정함
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (!editing) return;
-                chooseImageFile(true);
+                if (!editing) return;                 // 수정함
+                chooseImageFile(true);                // 수정함
             }
         });
 
@@ -187,7 +187,7 @@ public class ProfileWindow extends JDialog {
         mainArea.add(Box.createVerticalStrut(30));
         mainArea.add(Box.createVerticalGlue());
 
-        card.add(mainArea, BorderLayout.CENTER);
+        card.add(mainArea, BorderLayout.CENTER); // 수정함
 
         JPanel bottomEdit = new JPanel(new BorderLayout());
         bottomEdit.setBackground(Color.WHITE);
@@ -197,10 +197,10 @@ public class ProfileWindow extends JDialog {
         btnCancel.setPreferredSize(new Dimension(80, 32));
         btnCancel.setBackground(new Color(210, 210, 210));
         btnCancel.setFocusPainted(false);
-        btnCancel.addActionListener(e -> {
-            editing = false;
-            cardLayout.show(cardPanel, CARD_VIEW);
-            cardPanel.repaint();
+        btnCancel.addActionListener(e -> { // 수정함
+            editing = false;               // 수정함
+            cardLayout.show(cardPanel, CARD_VIEW); // 수정함
+            cardPanel.repaint();           // 수정함
         });
 
         JButton btnSave = new JButton("Save");
@@ -208,12 +208,12 @@ public class ProfileWindow extends JDialog {
         btnSave.setBackground(new Color(60, 179, 113));
         btnSave.setForeground(Color.BLACK);
         btnSave.setFocusPainted(false);
-        btnSave.addActionListener(e -> {
-            saveEditToModel();
-            editing = false;
-            if (onSavedCallback != null) onSavedCallback.run();
-            cardLayout.show(cardPanel, CARD_VIEW);
-            cardPanel.repaint();
+        btnSave.addActionListener(e -> { // 수정함
+            saveEditToModel();            // 수정함
+            editing = false;              // 수정함
+            if (onSavedCallback != null) onSavedCallback.run(); // 수정함
+            cardLayout.show(cardPanel, CARD_VIEW); // 수정함
+            cardPanel.repaint();          // 수정함
         });
 
         JPanel leftWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 25, 0));
@@ -231,29 +231,29 @@ public class ProfileWindow extends JDialog {
         cardPanel.add(card, CARD_EDIT);
     }
 
-    private void enterEditModeFromModel() {
-        tempProfileImagePath = profileData.getProfileImagePath();
-        tempBackgroundImagePath = profileData.getBackgroundImagePath();
+    private void enterEditModeFromModel() { // 수정함
+        tempProfileImagePath = profileData.getProfileImagePath();     // 수정함
+        tempBackgroundImagePath = profileData.getBackgroundImagePath(); // 수정함
 
         txtName.setText(profileData.getName());
         txtStatus.setText(profileData.getStatusMessage());
 
-        ImageIcon icon = loadImageIcon(tempProfileImagePath, 90, 90);
-        if (icon != null) {
-            editProfileImageLabel.setIcon(icon);
-            editProfileImageLabel.setText("");
-        } else {
-            editProfileImageLabel.setIcon(null);
-            editProfileImageLabel.setText("🙂");
-            editProfileImageLabel.setFont(new Font("Dialog", Font.PLAIN, 32));
+        ImageIcon icon = loadImageIcon(tempProfileImagePath, 90, 90); // 수정함
+        if (icon != null) {                                           // 수정함
+            editProfileImageLabel.setIcon(icon);                       // 수정함
+            editProfileImageLabel.setText("");                         // 수정함
+        } else {                                                       // 수정함
+            editProfileImageLabel.setIcon(null);                       // 수정함
+            editProfileImageLabel.setText("🙂");                       // 수정함
+            editProfileImageLabel.setFont(new Font("Dialog", Font.PLAIN, 32)); // 수정함
         }
     }
 
-    private void saveEditToModel() {
-        profileData.setName(txtName.getText().trim());
-        profileData.setStatusMessage(txtStatus.getText().trim());
-        profileData.setProfileImagePath(tempProfileImagePath);
-        profileData.setBackgroundImagePath(tempBackgroundImagePath);
+    private void saveEditToModel() { // 수정함
+        profileData.setName(txtName.getText().trim());                 // 수정함
+        profileData.setStatusMessage(txtStatus.getText().trim());      // 수정함
+        profileData.setProfileImagePath(tempProfileImagePath);         // 수정함
+        profileData.setBackgroundImagePath(tempBackgroundImagePath);   // 수정함
 
         viewNameLabel.setText(profileData.getName());
 
@@ -270,22 +270,22 @@ public class ProfileWindow extends JDialog {
         cardPanel.repaint();
     }
 
-    private void chooseImageFile(boolean isProfile) {
-        JFileChooser chooser = new JFileChooser();
-        int result = chooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File file = chooser.getSelectedFile();
-            if (file != null && file.exists()) {
-                if (isProfile) {
-                    tempProfileImagePath = file.getAbsolutePath();
-                    ImageIcon icon = loadImageIcon(tempProfileImagePath, 90, 90);
-                    if (icon != null) {
-                        editProfileImageLabel.setIcon(icon);
-                        editProfileImageLabel.setText("");
+    private void chooseImageFile(boolean isProfile) { // 수정함
+        JFileChooser chooser = new JFileChooser();    // 수정함
+        int result = chooser.showOpenDialog(this);    // 수정함
+        if (result == JFileChooser.APPROVE_OPTION) {  // 수정함
+            File file = chooser.getSelectedFile();    // 수정함
+            if (file != null && file.exists()) {      // 수정함
+                if (isProfile) {                      // 수정함
+                    tempProfileImagePath = file.getAbsolutePath(); // 수정함
+                    ImageIcon icon = loadImageIcon(tempProfileImagePath, 90, 90); // 수정함
+                    if (icon != null) {               // 수정함
+                        editProfileImageLabel.setIcon(icon); // 수정함
+                        editProfileImageLabel.setText("");   // 수정함
                     }
-                } else {
-                    tempBackgroundImagePath = file.getAbsolutePath();
-                    cardPanel.repaint();
+                } else {                               // 수정함
+                    tempBackgroundImagePath = file.getAbsolutePath(); // 수정함
+                    cardPanel.repaint();               // 수정함
                 }
             }
         }
@@ -310,39 +310,39 @@ public class ProfileWindow extends JDialog {
         }
     }
 
-    private class BackgroundPanel extends JPanel {
-        private String lastBgPath;
-        private Image bgImage;
+    private class BackgroundPanel extends JPanel { // 수정함
+        private String lastBgPath;                  // 수정함
+        private Image bgImage;                      // 수정함
 
         @Override
-        protected void paintComponent(Graphics g) {
+        protected void paintComponent(Graphics g) { // 수정함
             super.paintComponent(g);
             int w = getWidth();
             int h = getHeight();
 
-            ImageIcon icon = null;
-            if (!editing && profileData.getBackgroundImageIcon() != null) {
-                icon = profileData.getBackgroundImageIcon();
+            ImageIcon icon = null; // 수정함
+            if (!editing && profileData.getBackgroundImageIcon() != null) { // 수정함
+                icon = profileData.getBackgroundImageIcon();                // 수정함
             }
 
-            String bgPath;
-            if (editing && tempBackgroundImagePath != null && !tempBackgroundImagePath.isEmpty()) bgPath = tempBackgroundImagePath;
-            else bgPath = profileData.getBackgroundImagePath();
+            String bgPath; // 수정함
+            if (editing && tempBackgroundImagePath != null && !tempBackgroundImagePath.isEmpty()) bgPath = tempBackgroundImagePath; // 수정함
+            else bgPath = profileData.getBackgroundImagePath(); // 수정함
 
             Graphics2D g2 = (Graphics2D) g;
 
-            if (icon != null && icon.getImage() != null) {
-                g2.drawImage(icon.getImage(), 0, 0, w, HEADER_HEIGHT, this);
-            } else {
-                if (bgPath == null || bgPath.isEmpty()) {
-                    bgImage = null;
-                    lastBgPath = null;
-                } else if (!bgPath.equals(lastBgPath)) {
-                    lastBgPath = bgPath;
-                    bgImage = loadBackgroundImage(bgPath);
+            if (icon != null && icon.getImage() != null) { // 수정함
+                g2.drawImage(icon.getImage(), 0, 0, w, HEADER_HEIGHT, this); // 수정함
+            } else { // 수정함
+                if (bgPath == null || bgPath.isEmpty()) { // 수정함
+                    bgImage = null;                        // 수정함
+                    lastBgPath = null;                     // 수정함
+                } else if (!bgPath.equals(lastBgPath)) {   // 수정함
+                    lastBgPath = bgPath;                   // 수정함
+                    bgImage = loadBackgroundImage(bgPath); // 수정함
                 }
 
-                if (bgImage != null) g2.drawImage(bgImage, 0, 0, w, HEADER_HEIGHT, this);
+                if (bgImage != null) g2.drawImage(bgImage, 0, 0, w, HEADER_HEIGHT, this); // 수정함
                 else {
                     g2.setColor(new Color(220, 220, 220));
                     g2.fillRect(0, 0, w, HEADER_HEIGHT);
@@ -353,7 +353,7 @@ public class ProfileWindow extends JDialog {
             g2.fillRect(0, HEADER_HEIGHT, w, h - HEADER_HEIGHT);
         }
 
-        private Image loadBackgroundImage(String path) {
+        private Image loadBackgroundImage(String path) { // 수정함
             try {
                 Image raw = null;
                 if (path.startsWith("/")) {

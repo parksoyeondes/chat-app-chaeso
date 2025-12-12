@@ -17,8 +17,8 @@ public class ClientNet {
     private DataInputStream dis;
     private DataOutputStream dos;
 
-    private FriendsPanel friendsPanel;
-    private ChatsPanel chatsPanel;
+    private FriendsPanel friendsPanel; // 수정함
+    private ChatsPanel chatsPanel;     // 수정함
 
     private Map<String, ChatRoom> roomMap = new HashMap<>();
     private String me;
@@ -27,11 +27,11 @@ public class ClientNet {
                      String ip,
                      String port,
                      FriendsPanel friendsPanel,
-                     ChatsPanel chatsPanel) {
+                     ChatsPanel chatsPanel) { // 수정함
         try {
             me = username;
-            this.chatsPanel = chatsPanel;
-            this.friendsPanel = friendsPanel;
+            this.chatsPanel = chatsPanel;     // 수정함
+            this.friendsPanel = friendsPanel; // 수정함
 
             socket = new Socket(ip, Integer.parseInt(port));
             System.out.println("[Client] 서버 연결 성공: " + ip + ":" + port);
@@ -53,24 +53,24 @@ public class ClientNet {
 
     // ✅ ChatsPanel에서 호출하는 메서드
     // roomId 예: "park,son"
-    public void openRoom(String roomId) {
+    public void openRoom(String roomId) { // 수정함
         if (roomId == null) return;
         roomId = roomId.trim();
         if (roomId.isEmpty()) return;
 
         // 서버에 "이 멤버로 방 열어줘" 요청
-        SendMessage("/openRoom " + roomId);
+        SendMessage("/openRoom " + roomId); // 수정함
     }
 
     // (선택) 내가 이미 열린 방을 로컬에서 즉시 열고 싶을 때 쓰는 용도
-    public void openRoomLocal(String roomId) {
+    public void openRoomLocal(String roomId) { // 수정함
         if (roomId == null) return;
         roomId = roomId.trim();
         if (roomId.isEmpty()) return;
 
         ChatRoom room = roomMap.get(roomId);
         if (room == null) {
-            room = new ChatRoom(roomId, this);
+            room = new ChatRoom(roomId, this); // 수정함
             roomMap.put(roomId, room);
         } else {
             room.setVisible(true);
@@ -78,7 +78,7 @@ public class ClientNet {
             room.requestFocus();
         }
 
-        if (chatsPanel != null) chatsPanel.addRoom(roomId);
+        if (chatsPanel != null) chatsPanel.addRoom(roomId); // 수정함
         room.setVisible(true);
     }
 
@@ -94,7 +94,7 @@ public class ClientNet {
                     String rest = (msgs.length > 1) ? msgs[1] : "";
 
                     // ===================== 프로필 텍스트 =====================
-                    if (cmd.equals("/profileUpdate")) {
+                    if (cmd.equals("/profileUpdate")) { // 수정함
                         String[] parts = rest.split(" ", 2);
                         if (parts.length < 2) continue;
 
@@ -103,56 +103,60 @@ public class ClientNet {
 
                         String decoded;
                         try {
-                            decoded = URLDecoder.decode(payload, "UTF-8");
+                            decoded = URLDecoder.decode(payload, "UTF-8"); // 수정함
                         } catch (Exception ex) {
                             decoded = payload;
                         }
 
-                        String[] vals = decoded.split("\t", 2);
-                        String displayName = (vals.length >= 1) ? vals[0] : user;
-                        String status = (vals.length >= 2) ? vals[1] : "";
+                        String[] vals = decoded.split("\t", 2); // 수정함
+                        String displayName = (vals.length >= 1) ? vals[0] : user; // 수정함
+                        String status = (vals.length >= 2) ? vals[1] : "";        // 수정함
 
-                        if (friendsPanel != null) {
+                        if (friendsPanel != null) { // 수정함
                             SwingUtilities.invokeLater(() ->
-                                    friendsPanel.updateFriendProfile(user, displayName, status)
+                                    friendsPanel.updateFriendProfile(user, displayName, status) // 수정함
                             );
                         }
                         continue;
                     }
 
                     // ===================== 프로필 사진 =====================
-                    if (cmd.equals("/profileImg")) {
-                        String user = rest.trim();
+                    if (cmd.equals("/profileImg")) { // 수정함
+                        String[] parts = rest.trim().split(" ", 2); // 수정함
+                        String user = parts[0].trim();              // 수정함
+
                         int length = dis.readInt();
                         if (length <= 0) continue;
 
                         byte[] buf = new byte[length];
                         dis.readFully(buf);
 
-                        ImageIcon icon = new ImageIcon(buf);
+                        ImageIcon icon = new ImageIcon(buf); // 수정함
 
-                        if (friendsPanel != null) {
+                        if (friendsPanel != null) { // 수정함
                             SwingUtilities.invokeLater(() ->
-                                    friendsPanel.updateFriendProfileImage(user, icon)
+                                    friendsPanel.updateFriendProfileImage(user, icon) // 수정함
                             );
                         }
                         continue;
                     }
 
                     // ===================== 배경 사진 =====================
-                    if (cmd.equals("/profileBg")) {
-                        String user = rest.trim();
+                    if (cmd.equals("/profileBg")) { // 수정함
+                        String[] parts = rest.trim().split(" ", 2); // 수정함
+                        String user = parts[0].trim();              // 수정함
+
                         int length = dis.readInt();
                         if (length <= 0) continue;
 
                         byte[] buf = new byte[length];
                         dis.readFully(buf);
 
-                        ImageIcon icon = new ImageIcon(buf);
+                        ImageIcon icon = new ImageIcon(buf); // 수정함
 
-                        if (friendsPanel != null) {
+                        if (friendsPanel != null) { // 수정함
                             SwingUtilities.invokeLater(() ->
-                                    friendsPanel.updateFriendBackgroundImage(user, icon)
+                                    friendsPanel.updateFriendBackgroundImage(user, icon) // 수정함
                             );
                         }
                         continue;
@@ -176,12 +180,12 @@ public class ClientNet {
                     }
 
                     // -------------------- 방 열기 --------------------
-                    if (cmd.equals("/openRoom")) {
+                    if (cmd.equals("/openRoom")) { // 수정함
                         String roomId = rest.trim();
 
                         ChatRoom room = roomMap.get(roomId);
                         if (room == null) {
-                            room = new ChatRoom(roomId, ClientNet.this);
+                            room = new ChatRoom(roomId, ClientNet.this); // 수정함
                             roomMap.put(roomId, room);
                         } else {
                             room.setVisible(true);
@@ -189,7 +193,7 @@ public class ClientNet {
                             room.requestFocus();
                         }
 
-                        if (chatsPanel != null) chatsPanel.addRoom(roomId);
+                        if (chatsPanel != null) chatsPanel.addRoom(roomId); // 수정함
                         room.setVisible(true);
                         continue;
                     }
@@ -309,17 +313,17 @@ public class ClientNet {
         return me;
     }
 
-    public String getDisplayName(String name) {
-        if (friendsPanel != null) return friendsPanel.getDisplayName(name);
+    public String getDisplayName(String name) { // 수정함
+        if (friendsPanel != null) return friendsPanel.getDisplayName(name); // 수정함
         return name;
     }
 
     // ================== 채팅방 이미지 전송 ==================
-    public void sendImage(String roomId, File file) {
+    public void sendImage(String roomId, File file) { // 수정함
         try {
             byte[] bytes = Files.readAllBytes(file.toPath());
 
-            dos.writeUTF("/roomImg " + roomId + " " + me);
+            dos.writeUTF("/roomImg " + roomId + " " + me); // 수정함
             dos.writeInt(bytes.length);
             dos.write(bytes);
             dos.flush();
@@ -330,7 +334,7 @@ public class ClientNet {
     }
 
     // ================== 프로필 텍스트 전송 ==================
-    public void sendProfileUpdate(ProfileData myProfile) {
+    public void sendProfileUpdate(ProfileData myProfile) { // 수정함
         if (myProfile == null) return;
 
         String name = myProfile.getName();
@@ -338,20 +342,26 @@ public class ClientNet {
         if (name == null) name = "";
         if (status == null) status = "";
 
-        String payload = name + "\t" + status;
-        String encoded = URLEncoder.encode(payload, StandardCharsets.UTF_8);
+        String payload = name + "\t" + status; // 수정함
+        String encoded = URLEncoder.encode(payload, StandardCharsets.UTF_8); // 수정함
 
-        System.out.println("[Client] SEND /profileUpdate payload=" + payload + " encoded=" + encoded);
-        SendMessage("/profileUpdate " + me + " " + encoded);
+        System.out.println("[Client] SEND /profileUpdate payload=" + payload + " encoded=" + encoded); // 수정함
+        SendMessage("/profileUpdate " + me + " " + encoded); // 수정함
     }
 
     // ================== 프로필 사진 전송 ==================
-    public void sendMyProfileImage(File file) {
+    public void sendMyProfileImage(File file) { // 수정함
         if (file == null || !file.exists()) return;
         try {
             byte[] bytes = Files.readAllBytes(file.toPath());
 
-            dos.writeUTF("/profileImg " + me);
+            String ext = ""; // 수정함
+            String name = file.getName(); // 수정함
+            int dot = name.lastIndexOf('.'); // 수정함
+            if (dot >= 0 && dot < name.length() - 1) ext = name.substring(dot + 1).toLowerCase(); // 수정함
+            if (ext.isEmpty()) ext = "bin"; // 수정함
+
+            dos.writeUTF("/profileImg " + me + " " + ext); // 수정함
             dos.writeInt(bytes.length);
             dos.write(bytes);
             dos.flush();
@@ -362,12 +372,18 @@ public class ClientNet {
     }
 
     // ================== 배경 사진 전송 ==================
-    public void sendMyBackgroundImage(File file) {
+    public void sendMyBackgroundImage(File file) { // 수정함
         if (file == null || !file.exists()) return;
         try {
             byte[] bytes = Files.readAllBytes(file.toPath());
 
-            dos.writeUTF("/profileBg " + me);
+            String ext = ""; // 수정함
+            String name = file.getName(); // 수정함
+            int dot = name.lastIndexOf('.'); // 수정함
+            if (dot >= 0 && dot < name.length() - 1) ext = name.substring(dot + 1).toLowerCase(); // 수정함
+            if (ext.isEmpty()) ext = "bin"; // 수정함
+
+            dos.writeUTF("/profileBg " + me + " " + ext); // 수정함
             dos.writeInt(bytes.length);
             dos.write(bytes);
             dos.flush();

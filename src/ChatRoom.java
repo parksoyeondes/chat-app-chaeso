@@ -34,7 +34,7 @@ public class ChatRoom extends JFrame {
     private HangmanPanel hangmanPanel;
 
     // 첨부 버튼
-    private JButton btnAttach;
+    private JButton btnAttach; // 수정함
 
     public ChatRoom(String roomId, ClientNet clientNet) {
         this.roomId = roomId;
@@ -99,7 +99,7 @@ public class ChatRoom extends JFrame {
         btnGame.setBorderPainted(true);
 
         // 첨부 버튼 (+)
-        btnAttach = new JButton("+");
+        btnAttach = new JButton("+"); // 수정함
         btnAttach.setPreferredSize(new Dimension(28, 28));
         btnAttach.setBackground(new Color(240, 240, 240));
         btnAttach.setOpaque(true);
@@ -110,7 +110,7 @@ public class ChatRoom extends JFrame {
         // 왼쪽에 첨부 + 이모티콘 + 게임 버튼
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         leftPanel.setOpaque(false);
-        leftPanel.add(btnAttach);
+        leftPanel.add(btnAttach); // 수정함
         leftPanel.add(btnEmoji);
         leftPanel.add(btnGame);
 
@@ -132,7 +132,7 @@ public class ChatRoom extends JFrame {
         btnEmoji.addActionListener(e -> showEmojiPicker());
 
         // 첨부 버튼: 파일 선택 후 clientNet.sendImage 호출
-        btnAttach.addActionListener(e -> openImageFileChooser());
+        btnAttach.addActionListener(e -> openImageFileChooser()); // 수정함
 
         setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
         setVisible(true);
@@ -344,83 +344,82 @@ public class ChatRoom extends JFrame {
 
     // ==================== 첨부 이미지 ====================
 
-    private void openImageFileChooser() {
-        JFileChooser chooser = new JFileChooser();
-        FileNameExtensionFilter filter = new FileNameExtensionFilter(
+    private void openImageFileChooser() { // 수정함
+        JFileChooser chooser = new JFileChooser(); // 수정함
+        FileNameExtensionFilter filter = new FileNameExtensionFilter( // 수정함
                 "Image Files (png, jpg, jpeg, gif, bmp)",
                 "png", "jpg", "jpeg", "gif", "bmp"
         );
-        chooser.setFileFilter(filter);
+        chooser.setFileFilter(filter); // 수정함
 
-        int result = chooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = chooser.getSelectedFile();
+        int result = chooser.showOpenDialog(this); // 수정함
+        if (result == JFileChooser.APPROVE_OPTION) { // 수정함
+            File selectedFile = chooser.getSelectedFile(); // 수정함
             // 화면에는 서버에서 브로드캐스트 받은 뒤 appendImage로 그림
-            clientNet.sendImage(roomId, selectedFile);
+            clientNet.sendImage(roomId, selectedFile); // 수정함
         }
     }
 
     // 서버에서 받은 이미지 그리기
-    public void appendImage(boolean isMine, ImageIcon icon) {
+    public void appendImage(boolean isMine, ImageIcon icon) { // 수정함
         // ★ 여기서 채팅방 폭에 맞게 스케일링
-        int viewportWidth = scrollPane.getViewport().getWidth();
-        if (viewportWidth <= 0) {
+        int viewportWidth = scrollPane.getViewport().getWidth(); // 수정함
+        if (viewportWidth <= 0) { // 수정함
             // 레이아웃이 아직 안 잡힌 타이밍일 수 있으니 기본값
-            viewportWidth = 220;
+            viewportWidth = 220; // 수정함
         }
-        int maxWidth  = viewportWidth - 60;  // 좌우 여백 조금 빼기
-        int maxHeight = 250;                 // 최대 높이 제한 (원하는대로 조절 가능)
+        int maxWidth  = viewportWidth - 60;  // 수정함
+        int maxHeight = 250;                 // 수정함
 
-        ImageIcon scaledIcon = scaleImageToFit(icon, maxWidth, maxHeight);
+        ImageIcon scaledIcon = scaleImageToFit(icon, maxWidth, maxHeight); // 수정함
 
-        JLabel label = new JLabel(scaledIcon);
+        JLabel label = new JLabel(scaledIcon); // 수정함
 
-        JPanel bubblePanel = new JPanel();
-        bubblePanel.setOpaque(false);
-        bubblePanel.add(label);
+        JPanel bubblePanel = new JPanel(); // 수정함
+        bubblePanel.setOpaque(false); // 수정함
+        bubblePanel.add(label); // 수정함
 
-        JPanel line = new JPanel(new BorderLayout());
-        line.setOpaque(false);
-        if (isMine) {
-            line.add(bubblePanel, BorderLayout.EAST);
-        } else {
-            line.add(bubblePanel, BorderLayout.WEST);
+        JPanel line = new JPanel(new BorderLayout()); // 수정함
+        line.setOpaque(false); // 수정함
+        if (isMine) { // 수정함
+            line.add(bubblePanel, BorderLayout.EAST); // 수정함
+        } else { // 수정함
+            line.add(bubblePanel, BorderLayout.WEST); // 수정함
         }
 
-        Dimension pref = line.getPreferredSize();
-        line.setMaximumSize(new Dimension(Integer.MAX_VALUE, pref.height));
+        Dimension pref = line.getPreferredSize(); // 수정함
+        line.setMaximumSize(new Dimension(Integer.MAX_VALUE, pref.height)); // 수정함
 
-        messagePanel.add(line);
-        messagePanel.revalidate();
-        messagePanel.repaint();
+        messagePanel.add(line); // 수정함
+        messagePanel.revalidate(); // 수정함
+        messagePanel.repaint(); // 수정함
 
-        SwingUtilities.invokeLater(() -> {
-            JScrollBar bar = scrollPane.getVerticalScrollBar();
-            bar.setValue(bar.getMaximum());
+        SwingUtilities.invokeLater(() -> { // 수정함
+            JScrollBar bar = scrollPane.getVerticalScrollBar(); // 수정함
+            bar.setValue(bar.getMaximum()); // 수정함
         });
     }
 
     // 실제 스케일링 로직
-    private ImageIcon scaleImageToFit(ImageIcon src, int maxWidth, int maxHeight) {
-        int w = src.getIconWidth();
-        int h = src.getIconHeight();
+    private ImageIcon scaleImageToFit(ImageIcon src, int maxWidth, int maxHeight) { // 수정함
+        int w = src.getIconWidth(); // 수정함
+        int h = src.getIconHeight(); // 수정함
 
-        if (w <= 0 || h <= 0) return src;
+        if (w <= 0 || h <= 0) return src; // 수정함
 
-        // 이미 충분히 작으면 그대로 사용
-        if (w <= maxWidth && h <= maxHeight) {
-            return src;
+        if (w <= maxWidth && h <= maxHeight) { // 수정함
+            return src; // 수정함
         }
 
-        double scaleW = (double) maxWidth / w;
-        double scaleH = (double) maxHeight / h;
-        double scale  = Math.min(scaleW, scaleH);
+        double scaleW = (double) maxWidth / w; // 수정함
+        double scaleH = (double) maxHeight / h; // 수정함
+        double scale  = Math.min(scaleW, scaleH); // 수정함
 
-        int newW = (int) (w * scale);
-        int newH = (int) (h * scale);
+        int newW = (int) (w * scale); // 수정함
+        int newH = (int) (h * scale); // 수정함
 
-        Image scaled = src.getImage().getScaledInstance(newW, newH, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaled);
+        Image scaled = src.getImage().getScaledInstance(newW, newH, Image.SCALE_SMOOTH); // 수정함
+        return new ImageIcon(scaled); // 수정함
     }
 
     // ------------------- 이모지 선택창 ---------------------
