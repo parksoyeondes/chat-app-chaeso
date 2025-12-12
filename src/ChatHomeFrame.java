@@ -1,4 +1,5 @@
 // ChatHomeFrame.java
+// 테스트
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
