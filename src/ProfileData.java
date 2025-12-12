@@ -1,9 +1,16 @@
 // ProfileData.java
+import javax.swing.*;
+import java.awt.*;
+
 public class ProfileData {
     private String name;
     private String statusMessage;
-    private String profileImagePath;     // 프로필 사진 경로 (리소스 경로나 파일 경로)
-    private String backgroundImagePath;  // 배경 사진 경로 (옵션)
+    private String profileImagePath;
+    private String backgroundImagePath;
+
+    // 실시간 동기화용 실제 이미지 아이콘
+    private ImageIcon profileImageIcon;
+    private ImageIcon backgroundImageIcon;
 
     public ProfileData(String name, String statusMessage,
                        String profileImagePath, String backgroundImagePath) {
@@ -15,12 +22,11 @@ public class ProfileData {
 
     public ProfileData(String name) {
         this(name,
-             "One line Introduction",
-             "/icons/tomato_face.png",
-             "/icons/profile_bg_default.png");  // 기본 값 가정
+                "One line Introduction",
+                "/icons/tomato_face.png",
+                "/icons/profile_bg_default.png");
     }
 
-    // ===== Getter / Setter =====
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -32,4 +38,19 @@ public class ProfileData {
 
     public String getBackgroundImagePath() { return backgroundImagePath; }
     public void setBackgroundImagePath(String backgroundImagePath) { this.backgroundImagePath = backgroundImagePath; }
+
+    public ImageIcon getProfileImageIcon() { return profileImageIcon; }
+    public void setProfileImageIcon(ImageIcon profileImageIcon) { this.profileImageIcon = profileImageIcon; }
+
+    public ImageIcon getBackgroundImageIcon() { return backgroundImageIcon; }
+    public void setBackgroundImageIcon(ImageIcon backgroundImageIcon) { this.backgroundImageIcon = backgroundImageIcon; }
+
+    // 화면용 스케일
+    public static ImageIcon scaleIcon(ImageIcon src, int w, int h) {
+        if (src == null) return null;
+        Image img = src.getImage();
+        if (img == null) return null;
+        Image scaled = img.getScaledInstance(w, h, Image.SCALE_SMOOTH);
+        return new ImageIcon(scaled);
+    }
 }

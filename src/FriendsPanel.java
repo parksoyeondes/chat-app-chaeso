@@ -57,10 +57,15 @@ public class FriendsPanel extends JPanel implements TabView {
         myProfilePanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         profileImageLabel = new JLabel();
-        ImageIcon icon = loadProfileIconSimple(myProfile.getProfileImagePath(), 55, 45);
-        if (icon != null) {
-            profileImageLabel.setIcon(icon);
+        ImageIcon icon = null;
+        if (myProfile.getProfileImageIcon() != null) {
+            icon = ProfileData.scaleIcon(myProfile.getProfileImageIcon(), 55, 45);
         } else {
+            icon = loadProfileIconSimple(myProfile.getProfileImagePath(), 55, 45);
+        }
+
+        if (icon != null) profileImageLabel.setIcon(icon);
+        else {
             profileImageLabel.setText("🙂");
             profileImageLabel.setFont(new Font("Dialog", Font.PLAIN, 26));
         }
@@ -85,9 +90,16 @@ public class FriendsPanel extends JPanel implements TabView {
                             public void run() {
                                 refreshMyProfileView();
 
-                                // 저장됐으면 서버로 내 프로필 업데이트 전송
                                 if (clientNet != null) {
                                     clientNet.sendProfileUpdate(myProfile);
+
+                                    // 프로필 사진 파일이면 바이트 전송
+                                    File pFile = tryFile(myProfile.getProfileImagePath());
+                                    if (pFile != null) clientNet.sendMyProfileImage(pFile);
+
+                                    // 배경 사진 파일이면 바이트 전송
+                                    File bFile = tryFile(myProfile.getBackgroundImagePath());
+                                    if (bFile != null) clientNet.sendMyBackgroundImage(bFile);
                                 }
                             }
                         }
@@ -134,9 +146,26 @@ public class FriendsPanel extends JPanel implements TabView {
         this.clientNet = clientNet;
     }
 
+    private File tryFile(String path) {
+        if (path == null) return null;
+        String t = path.trim();
+        if (t.isEmpty()) return null;
+        if (t.startsWith("/")) return null; // 리소스면 전송 안 함
+        File f = new File(t);
+        if (!f.exists()) return null;
+        return f;
+    }
+
     private void refreshMyProfileView() {
         lblMyName.setText(myProfile.getName());
-        ImageIcon icon = loadProfileIconSimple(myProfile.getProfileImagePath(), 55, 45);
+
+        ImageIcon icon = null;
+        if (myProfile.getProfileImageIcon() != null) {
+            icon = ProfileData.scaleIcon(myProfile.getProfileImageIcon(), 55, 45);
+        } else {
+            icon = loadProfileIconSimple(myProfile.getProfileImagePath(), 55, 45);
+        }
+
         if (icon != null) {
             profileImageLabel.setIcon(icon);
             profileImageLabel.setText("");
@@ -149,12 +178,7 @@ public class FriendsPanel extends JPanel implements TabView {
 
         ProfileData friendProfile = friendProfileMap.get(realName);
         if (friendProfile == null) {
-            friendProfile = new ProfileData(
-                    realName,
-                    "One line Introduction",
-                    "/icons/tomato_face.png",
-                    "/icons/profile_bg_default.png"
-            );
+            friendProfile = new ProfileData(realName);
             friendProfileMap.put(realName, friendProfile);
         }
 
@@ -178,11 +202,9 @@ public class FriendsPanel extends JPanel implements TabView {
         String key = realName.trim();
         if (key.isEmpty()) return;
 
-        if (nick == null || nick.trim().isEmpty()) {
-            friendNicknameMap.remove(key);
-        } else {
-            friendNicknameMap.put(key, nick.trim());
-        }
+        if (nick == null || nick.trim().isEmpty()) friendNicknameMap.remove(key);
+        else friendNicknameMap.put(key, nick.trim());
+
         friendList.repaint();
     }
 
@@ -191,19 +213,16 @@ public class FriendsPanel extends JPanel implements TabView {
         String trimmed = realName.trim();
         if (trimmed.isEmpty()) return "";
         String nick = friendNicknameMap.get(trimmed);
-        if (nick != null && !nick.trim().isEmpty()) {
-            return nick.trim();
-        }
+        if (nick != null && !nick.trim().isEmpty()) return nick.trim();
         return trimmed;
     }
 
-    // ===================== 핵심: 실시간 프로필 반영 =====================
+    // ===================== 텍스트 실시간 반영 =====================
     public void updateFriendProfile(String realName, String displayName, String status) {
         if (realName == null) return;
         String key = realName.trim();
         if (key.isEmpty()) return;
 
-        // 내 프로필 업데이트를 서버에서 다시 받는 경우
         if (key.equals(myName)) {
             myProfile.setName(displayName);
             myProfile.setStatusMessage(status);
@@ -220,11 +239,52 @@ public class FriendsPanel extends JPanel implements TabView {
         p.setName(displayName);
         p.setStatusMessage(status);
 
-        // 친구 리스트에는 “표시 이름”이 보여야 하니까 닉네임 맵도 갱신
-        // (원래 별칭 기능을 계속 쓰고 싶으면, 여기서 setFriendNickname 호출을 빼면 됨)
         setFriendNickname(key, displayName);
+        friendList.repaint();
+    }
+
+    // ===================== 프로필 사진 실시간 반영 =====================
+    public void updateFriendProfileImage(String realName, ImageIcon icon) {
+        if (realName == null) return;
+        String key = realName.trim();
+        if (key.isEmpty()) return;
+
+        if (key.equals(myName)) {
+            myProfile.setProfileImageIcon(icon);
+            refreshMyProfileView();
+            return;
+        }
+
+        ProfileData p = friendProfileMap.get(key);
+        if (p == null) {
+            p = new ProfileData(key);
+            friendProfileMap.put(key, p);
+        }
+        p.setProfileImageIcon(icon);
 
         friendList.repaint();
+    }
+
+    // ===================== 배경 사진 실시간 반영 =====================
+    public void updateFriendBackgroundImage(String realName, ImageIcon icon) {
+        if (realName == null) return;
+        String key = realName.trim();
+        if (key.isEmpty()) return;
+
+        if (key.equals(myName)) {
+            myProfile.setBackgroundImageIcon(icon);
+            repaint();
+            return;
+        }
+
+        ProfileData p = friendProfileMap.get(key);
+        if (p == null) {
+            p = new ProfileData(key);
+            friendProfileMap.put(key, p);
+        }
+        p.setBackgroundImageIcon(icon);
+
+        repaint();
     }
 
     private ImageIcon loadProfileIconSimple(String path, int width, int height) {
@@ -234,14 +294,10 @@ public class FriendsPanel extends JPanel implements TabView {
         try {
             if (path.startsWith("/")) {
                 URL url = FriendsPanel.class.getResource(path);
-                if (url != null) {
-                    raw = new ImageIcon(url).getImage();
-                }
+                if (url != null) raw = new ImageIcon(url).getImage();
             } else {
                 File f = new File(path);
-                if (f.exists()) {
-                    raw = new ImageIcon(path).getImage();
-                }
+                if (f.exists()) raw = new ImageIcon(path).getImage();
             }
             if (raw == null) return null;
 
@@ -266,26 +322,10 @@ public class FriendsPanel extends JPanel implements TabView {
             String trimmed = names[i].trim();
             if (trimmed.isEmpty()) continue;
 
-            if (!model.contains(trimmed)) {
-                model.addElement(trimmed);
-            }
+            if (!model.contains(trimmed)) model.addElement(trimmed);
 
-            friendProfileMap.computeIfAbsent(
-                    trimmed,
-                    n -> new ProfileData(
-                            n,
-                            "One line Introduction",
-                            "/icons/tomato_face.png",
-                            "/icons/profile_bg_default.png"
-                    )
-            );
+            friendProfileMap.computeIfAbsent(trimmed, n -> new ProfileData(n));
         }
-    }
-
-    public void clearFriends() {
-        model.clear();
-        friendNicknameMap.clear();
-        friendProfileMap.clear();
     }
 
     public void addUser(String name) {
@@ -293,27 +333,14 @@ public class FriendsPanel extends JPanel implements TabView {
         String trimmed = name.trim();
         if (trimmed.isEmpty()) return;
 
-        if (!model.contains(trimmed)) {
-            model.addElement(trimmed);
-        }
-
-        friendProfileMap.computeIfAbsent(
-                trimmed,
-                n -> new ProfileData(
-                        n,
-                        "One line Introduction",
-                        "/icons/tomato_face.png",
-                        "/icons/profile_bg_default.png"
-                )
-        );
+        if (!model.contains(trimmed)) model.addElement(trimmed);
+        friendProfileMap.computeIfAbsent(trimmed, n -> new ProfileData(n));
     }
 
     public String[] getFriendsList() {
         int size = model.getSize();
         String[] usersForChat = new String[size];
-        for (int i = 0; i < model.size(); i++) {
-            usersForChat[i] = model.getElementAt(i);
-        }
+        for (int i = 0; i < model.size(); i++) usersForChat[i] = model.getElementAt(i);
         return usersForChat;
     }
 
@@ -348,8 +375,17 @@ public class FriendsPanel extends JPanel implements TabView {
             String realName = value;
             String displayName = getDisplayName(realName);
 
-            if (defaultFriendIcon != null) {
-                iconLabel.setIcon(defaultFriendIcon);
+            ProfileData p = friendProfileMap.get(realName);
+
+            ImageIcon show = null;
+            if (p != null && p.getProfileImageIcon() != null) {
+                show = ProfileData.scaleIcon(p.getProfileImageIcon(), 40, 32);
+            } else {
+                show = defaultFriendIcon;
+            }
+
+            if (show != null) {
+                iconLabel.setIcon(show);
                 iconLabel.setText("");
             } else {
                 iconLabel.setIcon(null);
@@ -358,11 +394,8 @@ public class FriendsPanel extends JPanel implements TabView {
 
             nameLabel.setText(displayName);
 
-            if (isSelected) {
-                setBackground(new Color(230, 230, 230));
-            } else {
-                setBackground(Color.WHITE);
-            }
+            if (isSelected) setBackground(new Color(230, 230, 230));
+            else setBackground(Color.WHITE);
 
             return this;
         }
