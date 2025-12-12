@@ -1,5 +1,4 @@
 // ChatHomeFrame.java
-// 테스트
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -59,6 +58,8 @@ public class ChatHomeFrame extends JFrame {
         left.setPreferredSize(new Dimension(80, 0));
         left.setBackground(new Color(220, 220, 220));
         left.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
+        left.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
+
         getContentPane().add(left, BorderLayout.WEST);
 
         JButton btnFriends = new JButton("👥");
