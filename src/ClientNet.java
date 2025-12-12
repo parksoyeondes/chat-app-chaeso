@@ -1,13 +1,17 @@
-import javax.swing.ImageIcon;
+// ClientNet.java
+import javax.swing.*;
 import java.io.*;
 import java.net.Socket;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ClientNet {
 
-    Socket socket;
+    private Socket socket;
     private InputStream is;
     private OutputStream os;
     private DataInputStream dis;
@@ -16,10 +20,7 @@ public class ClientNet {
     private FriendsPanel friendsPanel;
     private ChatsPanel chatsPanel;
 
-    // roomId -> ChatRoom
     private Map<String, ChatRoom> roomMap = new HashMap<>();
-
-    // 내 이름
     private String me;
 
     public ClientNet(String username,
@@ -40,7 +41,6 @@ public class ClientNet {
             dis = new DataInputStream(is);
             dos = new DataOutputStream(os);
 
-            // 로그인
             SendMessage("/login " + username);
 
             ListenNetwork net = new ListenNetwork();
@@ -51,37 +51,133 @@ public class ClientNet {
         }
     }
 
+    // ✅ ChatsPanel에서 호출하는 메서드
+    // roomId 예: "park,son"
+    public void openRoom(String roomId) {
+        if (roomId == null) return;
+        roomId = roomId.trim();
+        if (roomId.isEmpty()) return;
+
+        // 서버에 "이 멤버로 방 열어줘" 요청
+        SendMessage("/openRoom " + roomId);
+    }
+
+    // (선택) 내가 이미 열린 방을 로컬에서 즉시 열고 싶을 때 쓰는 용도
+    public void openRoomLocal(String roomId) {
+        if (roomId == null) return;
+        roomId = roomId.trim();
+        if (roomId.isEmpty()) return;
+
+        ChatRoom room = roomMap.get(roomId);
+        if (room == null) {
+            room = new ChatRoom(roomId, this);
+            roomMap.put(roomId, room);
+        } else {
+            room.setVisible(true);
+            room.toFront();
+            room.requestFocus();
+        }
+
+        if (chatsPanel != null) chatsPanel.addRoom(roomId);
+        room.setVisible(true);
+    }
+
     class ListenNetwork extends Thread {
         public void run() {
             while (true) {
                 try {
-                    // ===== 항상 UTF 헤더 먼저 받음 =====
                     String msg = dis.readUTF();
-                    if (msg == null) {
-                        System.out.println("[Client] readUTF() -> null, 수신 종료");
-                        break;
-                    }
+                    if (msg == null) break;
 
                     String[] msgs = msg.split(" ", 2);
                     String cmd = msgs[0];
                     String rest = (msgs.length > 1) ? msgs[1] : "";
 
+                    // ===================== 프로필 텍스트 =====================
+                    if (cmd.equals("/profileUpdate")) {
+                        String[] parts = rest.split(" ", 2);
+                        if (parts.length < 2) continue;
+
+                        String user = parts[0].trim();
+                        String payload = parts[1];
+
+                        String decoded;
+                        try {
+                            decoded = URLDecoder.decode(payload, "UTF-8");
+                        } catch (Exception ex) {
+                            decoded = payload;
+                        }
+
+                        String[] vals = decoded.split("\t", 2);
+                        String displayName = (vals.length >= 1) ? vals[0] : user;
+                        String status = (vals.length >= 2) ? vals[1] : "";
+
+                        if (friendsPanel != null) {
+                            SwingUtilities.invokeLater(() ->
+                                    friendsPanel.updateFriendProfile(user, displayName, status)
+                            );
+                        }
+                        continue;
+                    }
+
+                    // ===================== 프로필 사진 =====================
+                    if (cmd.equals("/profileImg")) {
+                        String user = rest.trim();
+                        int length = dis.readInt();
+                        if (length <= 0) continue;
+
+                        byte[] buf = new byte[length];
+                        dis.readFully(buf);
+
+                        ImageIcon icon = new ImageIcon(buf);
+
+                        if (friendsPanel != null) {
+                            SwingUtilities.invokeLater(() ->
+                                    friendsPanel.updateFriendProfileImage(user, icon)
+                            );
+                        }
+                        continue;
+                    }
+
+                    // ===================== 배경 사진 =====================
+                    if (cmd.equals("/profileBg")) {
+                        String user = rest.trim();
+                        int length = dis.readInt();
+                        if (length <= 0) continue;
+
+                        byte[] buf = new byte[length];
+                        dis.readFully(buf);
+
+                        ImageIcon icon = new ImageIcon(buf);
+
+                        if (friendsPanel != null) {
+                            SwingUtilities.invokeLater(() ->
+                                    friendsPanel.updateFriendBackgroundImage(user, icon)
+                            );
+                        }
+                        continue;
+                    }
+
                     // -------------------- 유저 목록 --------------------
                     if (cmd.equals("/userName")) {
                         String[] names = rest.split(",");
                         if (friendsPanel != null) {
-                            friendsPanel.setUserList(names);
+                            SwingUtilities.invokeLater(() -> friendsPanel.setUserList(names));
                         }
+                        continue;
+                    }
 
-                    } else if (cmd.equals("/newUser")) {
-                        String newUser = rest;
+                    if (cmd.equals("/newUser")) {
+                        String newUser = rest.trim();
                         if (friendsPanel != null) {
-                            friendsPanel.addUser(newUser);
+                            SwingUtilities.invokeLater(() -> friendsPanel.addUser(newUser));
                         }
+                        continue;
+                    }
 
-                    // -------------------- 방 열기 -----------------------
-                    } else if (cmd.equals("/openRoom")) {
-                        String roomId = rest;
+                    // -------------------- 방 열기 --------------------
+                    if (cmd.equals("/openRoom")) {
+                        String roomId = rest.trim();
 
                         ChatRoom room = roomMap.get(roomId);
                         if (room == null) {
@@ -93,17 +189,17 @@ public class ClientNet {
                             room.requestFocus();
                         }
 
-                        if (chatsPanel != null) {
-                            chatsPanel.addRoom(roomId);
-                        }
+                        if (chatsPanel != null) chatsPanel.addRoom(roomId);
                         room.setVisible(true);
+                        continue;
+                    }
 
-                    // -------------------- 텍스트 메시지 -------------------
-                    } else if (cmd.equals("/roomMsg")) {
+                    // -------------------- 텍스트 --------------------
+                    if (cmd.equals("/roomMsg")) {
                         String[] parts = msg.split(" ", 3);
                         if (parts.length < 3) continue;
 
-                        String roomId  = parts[1];
+                        String roomId = parts[1];
                         String chatMsg = parts[2];
 
                         String senderName = null;
@@ -118,72 +214,53 @@ public class ClientNet {
                         }
 
                         ChatRoom room = roomMap.get(roomId);
-                        if (room != null) {
-                            room.appendMessage(senderName, body);
-                        }
+                        if (room != null) room.appendMessage(senderName, body);
+                        continue;
+                    }
 
-                    // ===================== 이미지 수신 =====================
-                    } else if (cmd.equals("/roomImg")) {
-                        // rest = "roomId senderName"
+                    // -------------------- 이미지(채팅방) --------------------
+                    if (cmd.equals("/roomImg")) {
                         String[] parts = rest.split(" ", 2);
-                        if (parts.length < 2) {
-                            System.out.println("[Client] /roomImg 형식 이상: " + rest);
-                            continue;
-                        }
+                        if (parts.length < 2) continue;
 
-                        String roomId     = parts[0];
+                        String roomId = parts[0];
                         String senderName = parts[1];
 
-                        // 바로 뒤에 이미지 길이 + 바이트가 따라옴
                         int length = dis.readInt();
-                        if (length <= 0) {
-                            System.out.println("[Client] /roomImg length <= 0: " + length);
-                            continue;
-                        }
+                        if (length <= 0) continue;
 
                         byte[] buf = new byte[length];
                         dis.readFully(buf);
-
-                        System.out.println("[Client] /roomImg 수신 완료 roomId=" + roomId +
-                                " sender=" + senderName + " len=" + length);
 
                         ImageIcon icon = new ImageIcon(buf);
                         boolean isMine = senderName.equals(me);
 
                         ChatRoom room = roomMap.get(roomId);
-                        if (room != null) {
-                            room.appendImage(isMine, icon);
-                        } else {
-                            System.out.println("[Client] roomId=" + roomId + " 채팅방 없음");
-                        }
+                        if (room != null) room.appendImage(isMine, icon);
+                        continue;
+                    }
 
-                    // ===================== 행맨 시작 ======================
-                    } else if (cmd.equals("/hangStart")) {
+                    // -------------------- 행맨 --------------------
+                    if (cmd.equals("/hangStart")) {
                         String[] parts = rest.split(" ");
-                        if (parts.length < 3) {
-                            System.out.println("[Client] /hangStart 형식 이상: " + rest);
-                            continue;
-                        }
+                        if (parts.length < 3) continue;
 
                         String roomId = parts[0];
                         int wordIdx;
                         int themeIdx;
                         try {
-                            wordIdx  = Integer.parseInt(parts[1]);
+                            wordIdx = Integer.parseInt(parts[1]);
                             themeIdx = Integer.parseInt(parts[2]);
                         } catch (NumberFormatException ex) {
-                            System.out.println("[Client] /hangStart 숫자 파싱 실패: " + rest);
                             continue;
                         }
 
                         ChatRoom room = roomMap.get(roomId);
-                        if (room != null) {
-                            room.openHangman(wordIdx, themeIdx);
-                        } else {
-                            System.out.println("[Client] /hangStart room 없음: " + roomId);
-                        }
+                        if (room != null) room.openHangman(wordIdx, themeIdx);
+                        continue;
+                    }
 
-                    } else if (cmd.equals("/hangGuess")) {
+                    if (cmd.equals("/hangGuess")) {
                         String[] parts = rest.split(" ");
                         if (parts.length < 2) continue;
 
@@ -191,24 +268,20 @@ public class ClientNet {
                         char ch = parts[1].charAt(0);
 
                         ChatRoom room = roomMap.get(roomId);
-                        if (room != null) {
-                            room.applyHangmanGuess(ch);
-                        }
+                        if (room != null) room.applyHangmanGuess(ch);
+                        continue;
+                    }
 
-                    } else if (cmd.equals("/hangEnd")) {
+                    if (cmd.equals("/hangEnd")) {
                         String roomId = rest.trim();
-
                         ChatRoom room = roomMap.get(roomId);
-                        if (room != null) {
-                            room.closeHangman();
-                        }
+                        if (room != null) room.closeHangman();
+                        continue;
                     }
 
                 } catch (EOFException eof) {
-                    System.out.println("[Client] 서버와 연결 종료됨 (EOF) – 수신 스레드 종료");
                     break;
                 } catch (IOException e) {
-                    System.out.println("[Client] ListenNetwork IOException: " + e);
                     e.printStackTrace();
                     try {
                         if (dos != null) dos.close();
@@ -225,18 +298,10 @@ public class ClientNet {
 
     public void SendMessage(String msg) {
         try {
-            // System.out.println("[Client] SEND: " + msg);
             dos.writeUTF(msg);
             dos.flush();
         } catch (IOException e) {
-            System.out.println("[Client] SendMessage IOException: " + e);
-            try {
-                if (dos != null) dos.close();
-                if (dis != null) dis.close();
-                if (socket != null && !socket.isClosed()) socket.close();
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
+            e.printStackTrace();
         }
     }
 
@@ -244,45 +309,70 @@ public class ClientNet {
         return me;
     }
 
-    // ★★★ 여기! 실제 이름 → 내 클라 기준 표시 이름 ★★★
     public String getDisplayName(String name) {
-        if (friendsPanel != null) {
-            return friendsPanel.getDisplayName(name);
-        }
+        if (friendsPanel != null) return friendsPanel.getDisplayName(name);
         return name;
     }
 
-    public void openRoom(String roomId) {
-        ChatRoom room = roomMap.get(roomId);
-
-        if (room == null) {
-            room = new ChatRoom(roomId, this);
-            roomMap.put(roomId, room);
-        }
-
-        room.setVisible(true);
-        room.toFront();
-        room.requestFocus();
-    }
-
-    // ================== 이미지 전송 ==================
+    // ================== 채팅방 이미지 전송 ==================
     public void sendImage(String roomId, File file) {
         try {
             byte[] bytes = Files.readAllBytes(file.toPath());
-            System.out.println("[Client] sendImage roomId=" + roomId + " size=" + bytes.length + " bytes");
 
-            // 1) 헤더 UTF
             dos.writeUTF("/roomImg " + roomId + " " + me);
-
-            // 2) 길이 int
             dos.writeInt(bytes.length);
-
-            // 3) 실제 데이터
             dos.write(bytes);
             dos.flush();
 
         } catch (IOException e) {
-            System.out.println("[Client] sendImage IOException: " + e);
+            e.printStackTrace();
+        }
+    }
+
+    // ================== 프로필 텍스트 전송 ==================
+    public void sendProfileUpdate(ProfileData myProfile) {
+        if (myProfile == null) return;
+
+        String name = myProfile.getName();
+        String status = myProfile.getStatusMessage();
+        if (name == null) name = "";
+        if (status == null) status = "";
+
+        String payload = name + "\t" + status;
+        String encoded = URLEncoder.encode(payload, StandardCharsets.UTF_8);
+
+        System.out.println("[Client] SEND /profileUpdate payload=" + payload + " encoded=" + encoded);
+        SendMessage("/profileUpdate " + me + " " + encoded);
+    }
+
+    // ================== 프로필 사진 전송 ==================
+    public void sendMyProfileImage(File file) {
+        if (file == null || !file.exists()) return;
+        try {
+            byte[] bytes = Files.readAllBytes(file.toPath());
+
+            dos.writeUTF("/profileImg " + me);
+            dos.writeInt(bytes.length);
+            dos.write(bytes);
+            dos.flush();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ================== 배경 사진 전송 ==================
+    public void sendMyBackgroundImage(File file) {
+        if (file == null || !file.exists()) return;
+        try {
+            byte[] bytes = Files.readAllBytes(file.toPath());
+
+            dos.writeUTF("/profileBg " + me);
+            dos.writeInt(bytes.length);
+            dos.write(bytes);
+            dos.flush();
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
