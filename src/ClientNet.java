@@ -43,6 +43,8 @@ public class ClientNet {
 
             //서버에 소켓 연결
             socket = new Socket(ip, Integer.parseInt(port));
+            System.out.println("[Client] server connect: " + ip + ":" + port);
+            
             //연결된 소켓에서 입출력 스트림을 얻고 래핑
             is = socket.getInputStream();
             os = socket.getOutputStream();
@@ -57,10 +59,44 @@ public class ClientNet {
             ListenNetwork net = new ListenNetwork();
             net.start();
         } catch (IOException e) {
-            throw new RuntimeException("연결 실패", e);
+            throw new RuntimeException("connect fail", e);
         }
     }
 
+    // =========================
+    // [4] 채팅방 열기 요청(서버에게 요청)
+    // - roomId 예: "park,son"
+    // =========================
+    public void openRoom(String roomId) {
+        if (roomId == null) return;
+        roomId = roomId.trim();
+        if (roomId.isEmpty()) return;
+
+        SendMessage("/openRoom " + roomId);
+    }
+
+    // =========================
+    // [4-보조] 로컬에서 즉시 방 열기(테스트/즉시 오픈용)
+    // =========================
+    public void openRoomLocal(String roomId) {
+        if (roomId == null) return;
+        roomId = roomId.trim();
+        if (roomId.isEmpty()) return;
+
+        ChatRoom room = roomMap.get(roomId);
+        if (room == null) {
+            room = new ChatRoom(roomId, this);
+            roomMap.put(roomId, room);
+        } else {
+            room.setVisible(true);
+            room.toFront();
+            room.requestFocus();
+        }
+
+        if (chatsPanel != null) chatsPanel.addRoom(roomId);
+        room.setVisible(true);
+    }
+    
     // ------------------------ 서버 수신 스레드 -------------------------
 
     class ListenNetwork extends Thread {
@@ -110,6 +146,8 @@ public class ClientNet {
                     //  바로 이어서: 이미지 바이트 길이(int) + 이미지 바이트
                     if (cmd.equals("/profileImg")) {
                         String[] parts = rest.trim().split(" ", 2);
+                        if (parts.length < 1) continue;
+                        
                         String user = parts[0].trim();
 
                         int length = dis.readInt();
@@ -132,6 +170,8 @@ public class ClientNet {
                     // 형식은 /profileImg와 동일, 적용 위치만 다름
                     if (cmd.equals("/profileBg")) {
                         String[] parts = rest.trim().split(" ", 2);
+                        if (parts.length < 1) continue;
+
                         String user = parts[0].trim();
 
                         int length = dis.readInt();
@@ -307,20 +347,6 @@ public class ClientNet {
         }
     }
 
-    // -------------------- 로컬에서 방 창 열기 --------------------
-    public void openRoom(String roomId) {
-        ChatRoom room = roomMap.get(roomId);
-
-        if (room == null) {
-            room = new ChatRoom(roomId, this);
-            roomMap.put(roomId, room);
-        }
-
-        room.setVisible(true);
-        room.toFront();
-        room.requestFocus();
-    }
-
     // -------------------- 서버로 문자열 메시지 전송 --------------------
     public void SendMessage(String msg) {
         try {
@@ -372,7 +398,8 @@ public class ClientNet {
 
         String payload = name + "\t" + status;
         String encoded = URLEncoder.encode(payload, StandardCharsets.UTF_8);
-
+        
+        System.out.println("[Client] SEND /profileUpdate payload=" + payload + " encoded=" + encoded);
         SendMessage("/profileUpdate " + me + " " + encoded);
     }
 

@@ -73,13 +73,13 @@ public class ChatRoom extends JFrame {
         txtInput = new JTextField();
 
         // 전송 버튼
-        btnSend = new JButton("send");
+        btnSend = new JButton("Send");
         btnSend.setPreferredSize(new Dimension(50, 28));
         btnSend.setBackground(new Color(190, 70, 60));
         btnSend.setForeground(Color.WHITE);
         btnSend.setOpaque(true);
         btnSend.setFocusPainted(false);
-        btnSend.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        btnSend.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
         btnSend.setBorderPainted(true);
 
         // 이모지 버튼
@@ -88,7 +88,7 @@ public class ChatRoom extends JFrame {
         btnEmoji.setBackground(new Color(240, 240, 240));
         btnEmoji.setOpaque(true);
         btnEmoji.setFocusPainted(false);
-        btnEmoji.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        btnEmoji.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
         btnEmoji.setBorderPainted(true);
 
         // 게임 버튼
@@ -97,7 +97,7 @@ public class ChatRoom extends JFrame {
         btnGame.setBackground(new Color(200, 200, 200));
         btnGame.setOpaque(true);
         btnGame.setFocusPainted(false);
-        btnGame.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        btnGame.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
         btnGame.setBorderPainted(true);
 
         // 첨부 버튼 (+)
@@ -106,7 +106,7 @@ public class ChatRoom extends JFrame {
         btnAttach.setBackground(new Color(240, 240, 240));
         btnAttach.setOpaque(true);
         btnAttach.setFocusPainted(false);
-        btnAttach.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        btnAttach.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
         btnAttach.setBorderPainted(true);
 
         // 왼쪽에 첨부 + 이모티콘 + 게임 버튼
@@ -454,7 +454,16 @@ public class ChatRoom extends JFrame {
         // 처음 호출 시에만 다이얼로그 구성
         if (emojiDialog == null) {
             emojiDialog = new JDialog(this, "Emoji", false);
-            emojiDialog.setLayout(new GridLayout(2, 4, 5, 5));
+
+            // 바깥 여백 + 배경색을 주기 위한 외곽 패널
+            JPanel outer = new JPanel(new BorderLayout());
+            outer.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12)); // [추가] 바깥 여백
+            outer.setBackground(new Color(210, 210, 210));                    // [추가] 회색 배경
+
+            // 이모티콘 버튼을 배치할 그리드 패널
+            // outer 안에 들어가므로 투명 처리
+            JPanel grid = new JPanel(new GridLayout(2, 4, 5, 5));
+            grid.setOpaque(false); // 바깥 회색 배경이 보이게
 
             String[] codes = {
                     ":emoj1:", ":emoj2:", ":emoj3:", ":emoj4:",
@@ -472,11 +481,23 @@ public class ChatRoom extends JFrame {
                 }
 
                 btn.setMargin(new Insets(2, 2, 2, 2));
+
+                // 버튼 UI 스타일 정리
+                btn.setBackground(Color.WHITE);
+                btn.setOpaque(true);
+                btn.setFocusPainted(false);
+
                 // 클릭하면 해당 코드(:emoj1:)를 메시지로 전송
                 btn.addActionListener(e -> sendEmoticon(code));
 
-                emojiDialog.add(btn);
+                grid.add(btn);
             }
+
+            // 외곽 패널에 그리드 패널 부착
+            outer.add(grid, BorderLayout.CENTER);
+
+            // 다이얼로그 콘텐츠를 outer로 교체
+            emojiDialog.setContentPane(outer);
             emojiDialog.pack();
         }
 
@@ -489,11 +510,12 @@ public class ChatRoom extends JFrame {
         emojiDialog.setVisible(true);
     }
 
+
     // 리소스에서 이모티콘 아이콘을 읽고 지정된 크기로 스케일링
     private ImageIcon loadEmoji(String path, int size) {
         java.net.URL url = getClass().getResource(path);
         if (url == null) {
-            System.out.println("이모티콘 리소스 못 찾음: " + path);
+            System.out.println("Can't find Emoji resource: " + path);
             return null;
         }
         ImageIcon icon = new ImageIcon(url);
@@ -534,7 +556,8 @@ public class ChatRoom extends JFrame {
             hangmanDialog = new JDialog(this, "Hangman - " + roomId, false);
             hangmanDialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
             hangmanDialog.getContentPane().add(hangmanPanel);
-            hangmanDialog.pack();
+            hangmanDialog.setSize(460, 630);
+            hangmanDialog.setResizable(false);
             hangmanDialog.setLocationRelativeTo(this);
         }
 

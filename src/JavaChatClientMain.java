@@ -83,7 +83,7 @@ public class JavaChatClientMain extends JFrame {
         btnConnect.setForeground(Color.BLACK);
         btnConnect.setFocusPainted(false);
         btnConnect.setOpaque(true);
-        btnConnect.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        btnConnect.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
 
         // 버튼 클릭 이벤트
         Myaction action = new Myaction();
