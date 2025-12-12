@@ -254,7 +254,8 @@ public class ChatRoom extends JFrame {
         }
     }
 
-    // ---------------- 메시지 전송 ----------------
+    // ----------------------------- 메시지 전송 -----------------------------
+
     private void sendMessage() {
         String msg = txtInput.getText().trim();
         if (msg.isEmpty()) return;
@@ -422,7 +423,7 @@ public class ChatRoom extends JFrame {
         return new ImageIcon(scaled);
     }
 
-    // ------------------- 이모지 선택창 ---------------------
+    // -------------------------- 이모지 선택창 --------------------------
     private void showEmojiPicker() {
         if (emojiDialog == null) {
             emojiDialog = new JDialog(this, "Emoji", false);
@@ -471,7 +472,7 @@ public class ChatRoom extends JFrame {
         return new ImageIcon(scaled);
     }
 
-    // ====================== 행맨 게임 ========================
+    //----------------------------  행맨 게임 -----------------------------------
 
     public void openHangman(int wordIdx, int themeIdx) {
         if (hangmanDialog == null) {
@@ -492,7 +493,7 @@ public class ChatRoom extends JFrame {
                             clientNet.SendMessage("/hangStart " + roomId);
                         }
                     },
-                    true
+                    true // ★ 네트워크 모드
             );
 
             hangmanDialog = new JDialog(this, "Hangman - " + roomId, false);
@@ -502,10 +503,13 @@ public class ChatRoom extends JFrame {
             hangmanDialog.setLocationRelativeTo(this);
         }
 
+        // ★ 여기서 딱 한 번만, 매번 서버가 준 인덱스로 새 게임 시작
         hangmanPanel.startNewGameFromIndex(wordIdx, themeIdx);
+
         hangmanDialog.setVisible(true);
         hangmanDialog.toFront();
     }
+
 
     public void applyHangmanGuess(char ch) {
         if (hangmanPanel != null) {

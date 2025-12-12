@@ -16,8 +16,14 @@ public class HangmanPanel extends JPanel {
     private boolean networkMode = false;
 
     // ===== 게임 상태 =====
-    private String[] WORDS  = { "parksoyeon", "sonchaerim", "seoyujin", "shinyoungseo" };
-    private String[] THEMES = { "My Friend Name" };
+    private String[] THEMES = { "My Friend Name", "Country", "Animal" };
+
+    private String[][] WORDS_BY_THEME = {
+            { "parksoyeon", "sonchaerim" }, // 0번 테마
+            { "korea", "japan", "france" },                             // 1번 테마
+            { "dog", "cat", "elephant" }                                // 2번 테마
+    };
+
 
     private String answer;          // 정답 단어
     private char[] current;         // 맞춘 글자 상태
@@ -310,27 +316,32 @@ public class HangmanPanel extends JPanel {
     // =========================================
     public void startNewGameRandom() {
         Random rand = new Random();
-        int w = rand.nextInt(WORDS.length);
-        int t = rand.nextInt(THEMES.length);
-        startNewGameFromIndex(w, t);
+        int themeIdx = rand.nextInt(THEMES.length);          // 테마 먼저 뽑고
+        int wordIdx  = rand.nextInt(WORDS_BY_THEME[themeIdx].length); // 그 테마 안에서 단어 뽑기
+        startNewGameFromIndex(wordIdx, themeIdx);
     }
 
-    // 나중에 네트워크 동기화용으로도 쓸 수 있는 메서드
+    // 테마별로 단어 배열 선정
     public void startNewGameFromIndex(int wordIdx, int themeIdx) {
-        answer = WORDS[wordIdx].toLowerCase();
+        // themeIdx 테마 안에서 wordIdx 번째 단어 선택
+        answer = WORDS_BY_THEME[themeIdx][wordIdx].toLowerCase();
         current = new char[answer.length()];
 
+        // 현재 상태/사용 여부 초기화
         for (int i = 0; i < current.length; i++) current[i] = ' ';
         for (int i = 0; i < used.length; i++)    used[i]    = false;
 
         mistakes = 0;
 
+        // 테마 라벨 표시
         lblTheme.setText("“ " + THEMES[themeIdx] + " ”");
 
+        // 키보드/화면 갱신
         createKeyboard();
         updateWordLabel();
         drawingPanel.setMistakes(mistakes, maxMistakes);
     }
+
 
     private void updateWordLabel() {
         StringBuilder w = new StringBuilder();
@@ -496,61 +507,6 @@ public class HangmanPanel extends JPanel {
         dialog.setVisible(true);
     }
 
-
-
-//    private void onLose() {
-//        // ★ 커스텀 JDialog로 버튼 색 지정
-//        Window parent = SwingUtilities.getWindowAncestor(this);
-//        JDialog dialog = new JDialog(parent, "LOSE", Dialog.ModalityType.APPLICATION_MODAL);
-//        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-//
-//        JPanel panel = new JPanel();
-//        panel.setBackground(Color.WHITE);
-//        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
-//        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-//
-//        JLabel msg = new JLabel("<html>LOSE!<br/>정답: " + answer + "</html>", SwingConstants.CENTER);
-//        msg.setAlignmentX(Component.CENTER_ALIGNMENT);
-//        msg.setFont(new Font("Dialog", Font.PLAIN, 14));
-//
-//        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
-//        btnPanel.setBackground(Color.WHITE);
-//
-//        JButton restartBtn = new JButton("Restart");
-//        restartBtn.setBackground(new Color(60, 179, 113));
-//        restartBtn.setForeground(Color.BLACK);
-//        restartBtn.setFocusPainted(false);
-//
-//        JButton endBtn = new JButton("End");
-//        endBtn.setBackground(new Color(190, 70, 60));
-//        endBtn.setForeground(Color.BLACK);
-//        endBtn.setFocusPainted(false);
-//
-//        // 리스타트 눌렀을 때
-//        restartBtn.addActionListener(e -> {
-//            dialog.dispose();
-//            startNewGameRandom();
-//        });
-//
-//        // 엔드 눌렀을 때
-//        endBtn.addActionListener(e -> {
-//            dialog.dispose();
-//            onEndGame();
-//        });
-//
-//        btnPanel.add(restartBtn);
-//        btnPanel.add(endBtn);
-//
-//        panel.add(msg);
-//        panel.add(Box.createVerticalStrut(10));
-//        panel.add(btnPanel);
-//
-//        dialog.setContentPane(panel);
-//        dialog.pack();
-//        dialog.setLocationRelativeTo(this);
-//        dialog.setResizable(false);
-//        dialog.setVisible(true);
-//    }
 
     private void onEndGame() {
         // 나중에 여기서 채팅방에 "행맨게임을 종료했습니다." 보내도 됨

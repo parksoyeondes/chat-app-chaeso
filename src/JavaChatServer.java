@@ -17,6 +17,16 @@ public class JavaChatServer {
     private Socket client_socket;
     private Vector<UserService> UserVec = new Vector<>();
 
+    // ======  행맨 테마/단어 세트 (클라이언트 HangmanPanel이랑 맞추기) ======
+    private String[] HM_THEMES = { "My Friend Name", "Country", "Animal" };
+
+    private String[][] HM_WORDS_BY_THEME = {
+            { "parksoyeon", "sonchaerim" },          // 0번 테마: My Friend Name
+            { "korea", "japan", "france" },          // 1번 테마: Country
+            { "dog", "cat", "elephant" }             // 2번 테마: Animal
+    };
+
+    // -------- 서버 --------
     public static void main(String[] args) {
         new JavaChatServer();
     }
@@ -24,7 +34,7 @@ public class JavaChatServer {
     public JavaChatServer() {
         try {
             socket = new ServerSocket(30000);
-            System.out.println("[Server] 서버 시작: 포트 30000");
+            System.out.println("[Server] 서버 시작");
             AcceptServer accept_server = new AcceptServer();
             accept_server.start();
         } catch (IOException e) {
@@ -133,7 +143,6 @@ public class JavaChatServer {
             try {
                 writeUTFPacket(msg);
             } catch (IOException e) {
-                System.out.println("[Server] WriteOne IOException(" + UserName + "): " + e);
                 e.printStackTrace();
                 try {
                     dos.close();
@@ -158,15 +167,12 @@ public class JavaChatServer {
                 try {
                     String msg = dis.readUTF();
                     if (msg == null) {
-                        System.out.println("[Server] readUTF() -> null, " + UserName + " 연결 종료");
                         break;
                     }
 
                     msg = msg.trim();
                     String[] args = msg.split(" ", 3);
                     String cmd = args[0];
-
-                    System.out.println("[Server] RECV(" + UserName + "): " + msg);
 
                     // ---------------- 방 열기 ----------------
                     if (cmd.equals("/openRoom")) {
@@ -239,13 +245,19 @@ public class JavaChatServer {
                         String roomId = args[1];
 
                         Random r = new Random();
-                        int wordIdx  = r.nextInt(4);
-                        int themeIdx = 0;
 
+                        // 1) 테마 랜덤으로 하나 고르고
+                        int themeIdx = r.nextInt(HM_THEMES.length);
+
+                        // 2) 그 테마에 포함된 단어 개수 안에서 랜덤 인덱스 선택
+                        int wordIdx  = r.nextInt(HM_WORDS_BY_THEME[themeIdx].length);
+
+                        // 3) 방 멤버 전원에게 같은 인덱스를 브로드캐스트
                         String send = "/hangStart " + roomId + " " + wordIdx + " " + themeIdx;
                         sendRawToRoom(roomId, send);
                     }
 
+                    // ---------------- 행맨 플레이 중 글자 맞추기 --------
                     else if (cmd.equals("/hangGuess")) {
                         if (args.length < 3) continue;
                         String roomId = args[1];
@@ -255,6 +267,7 @@ public class JavaChatServer {
                         sendRawToRoom(roomId, send);
                     }
 
+                    // ------------ 게임 끝 -------------5
                     else if (cmd.equals("/hangEnd")) {
                         if (args.length < 2) continue;
                         String roomId = args[1];
