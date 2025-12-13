@@ -122,15 +122,17 @@ public class ChatRoom extends JFrame {
 
         add(bottom, BorderLayout.SOUTH);
 
-        // ===== 리스너들 =====
+        // ======== 리스너들 =========
+        // 메시지 전송 버튼
         btnSend.addActionListener(e -> sendMessage());
+        txtInput.addActionListener(e -> sendMessage());
 
+        //게임 시작 버튼
         btnGame.addActionListener(e ->
                 clientNet.SendMessage("/hangStart " + roomId)
         );
 
-        txtInput.addActionListener(e -> sendMessage());
-
+        // 이모티콘 전송 버튼
         btnEmoji.addActionListener(e -> showEmojiPicker());
 
         // 첨부 버튼: 파일 선택 후 clientNet.sendImage 호출
@@ -182,7 +184,7 @@ public class ChatRoom extends JFrame {
             setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         }
 
-        // 레이아웃이 적당한 크기를 잡을 수 있도록 말풍선 크기 계산
+        // 레이아웃이 적당한 크기를 잡을 수 있도록 말풍선 크기 계산 메소드 -----------
         @Override
         public Dimension getPreferredSize() {
             FontMetrics fm = getFontMetrics(getFont());
@@ -198,7 +200,7 @@ public class ChatRoom extends JFrame {
             return new Dimension(bubbleWidth + 10, bubbleHeight + 10);
         }
 
-        // 실제 말풍선(둥근 사각형 + 꼬리) 그리기
+        // 실제 말풍선(둥근 사각형 + 꼬리) 그리기 GUI -----------------
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -222,7 +224,7 @@ public class ChatRoom extends JFrame {
             int x;
 
             if (isMine) {
-                // ----- 내가 보낸 메시지: 오른쪽 정렬 + 초록색 말풍선 -----
+                // -------- 내가 보낸 메시지: 오른쪽 정렬 + 초록색 말풍선 ---------
                 x = getWidth() - bubbleWidth - tailSize - 5;
 
                 g2.setColor(new Color(46, 139, 87));
@@ -243,7 +245,7 @@ public class ChatRoom extends JFrame {
                 g2.drawString(text, textX, textY);
 
             } else {
-                //----- 상대가 보낸 메시지: 왼쪽 정렬 + 회색 말풍선 -------
+                //----------- 상대가 보낸 메시지: 왼쪽 정렬 + 회색 말풍선 ----------
                 x = tailSize + 5;
 
                 g2.setColor(new Color(230, 230, 230));
@@ -268,7 +270,8 @@ public class ChatRoom extends JFrame {
         }
     }
 
-    // ---------------- 메시지 전송 ----------------
+    // ================================  메시지 전송( 텍스트,이모지) ==============================
+
     private void sendMessage() {
         String msg = txtInput.getText().trim();
         if (msg.isEmpty()) return;
@@ -279,17 +282,17 @@ public class ChatRoom extends JFrame {
     }
 
     // ---------------- 서버에서 텍스트 메시지 수신 시 호출 ----------------
-    // ClientNet.ListenNetwork에서 /roomMsg 수신 → ChatRoom.appendMessage 호출
+
     public void appendMessage(String senderName, String body) {
         // senderName이 내 아이디와 같으면 내가 보낸 메시지
         boolean isMine = senderName != null && senderName.equals(clientNet.getUsername());
 
-        // body가 이모티콘 코드(:emoj1: 등)이면 이모티콘으로 처리
+        // 만약 서버로부터 받은 body가 이모티콘 코드(:emoj1: 등)이면 이모티콘으로 처리 --------
         ImageIcon emoji = emojiMap.get(body);
         if (emoji != null) {
             appendEmoji(isMine, emoji);
             return;
-        }
+        }//-----------------------------
 
         // 실제 말풍선에 보여줄 문자열 만들기
         String displayMsg;
@@ -321,7 +324,7 @@ public class ChatRoom extends JFrame {
         Dimension pref = line.getPreferredSize();
         line.setMaximumSize(new Dimension(Integer.MAX_VALUE, pref.height));
 
-        // messagePanel에 추가 → UI 갱신
+        // 실제 채팅 내용이 쌓이는 messagePanel에 추가 → UI 갱신
         messagePanel.add(line);
         messagePanel.revalidate();
         messagePanel.repaint();
@@ -333,42 +336,122 @@ public class ChatRoom extends JFrame {
         });
     }
 
-    // 이모티콘 보내기 : 텍스트 코드(:emoj1:)를 메시지로 보내고,
-    // 받은 쪽에서 이 코드를 emojiMap에서 찾아서 이미지로 표시
+    // -----------  이모티콘 보내기 : 텍스트 코드(:emoj1:)를 프로토콜 메시지로 보내는 메소드 ----------------
     private void sendEmoticon(String code) {
         clientNet.SendMessage("/roomMsg " + roomId + " " + code);
     }
 
     // ---------------- 이모티콘(이미지) 말풍선 추가 ----------------
     private void appendEmoji(boolean isMine, ImageIcon icon) {
+        //실제 채팅방에 이모티콘 ( = 이미지 ) 를 올리기 위함
         JLabel label = new JLabel(icon);
 
+        //이미지 담을 패널
         JPanel bubblePanel = new JPanel();
         bubblePanel.setOpaque(false);
         bubblePanel.add(label);
 
+        // 한 줄 단위로 이모티콘 올리기 위함.
         JPanel line = new JPanel(new BorderLayout());
         line.setOpaque(false);
         if (isMine) {
-            line.add(bubblePanel, BorderLayout.EAST);
+            line.add(bubblePanel, BorderLayout.EAST); // 한 줄에 왼쪽 / 오른쪽 나누어 올림
         } else {
             line.add(bubblePanel, BorderLayout.WEST);
         }
 
+        //그 한 줄의 높이와 폭 설정
         Dimension pref = line.getPreferredSize();
         line.setMaximumSize(new Dimension(Integer.MAX_VALUE, pref.height));
 
+        //실제 채팅 내용이 쌓이는 messagePanel에 한 줄 추가함
         messagePanel.add(line);
         messagePanel.revalidate();
         messagePanel.repaint();
 
+        //스크롤은 항상 아래로
         SwingUtilities.invokeLater(() -> {
             JScrollBar bar = scrollPane.getVerticalScrollBar();
             bar.setValue(bar.getMaximum());
         });
     }
 
-    // ==================== 첨부 이미지 ====================
+    // -------------------------- 이모지 선택하는 창 생성됨 -----------------------------
+
+    private void showEmojiPicker() {
+        // 이 안에서 각 이모지마다 버튼을 만들고 버튼 클릭시 전송됨
+        if (emojiDialog == null) {
+            emojiDialog = new JDialog(this, "Emoji", false);
+
+            // 바깥 여백 + 배경색을 주기 위한 외곽 패널
+            JPanel outer = new JPanel(new BorderLayout());
+            outer.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12)); // [추가] 바깥 여백
+            outer.setBackground(new Color(210, 210, 210));                    // [추가] 회색 배경
+
+            // 이모티콘 버튼을 배치할 그리드 패널
+            JPanel grid = new JPanel(new GridLayout(2, 4, 5, 5));
+            grid.setOpaque(false); // 바깥 회색 배경이 보이게
+
+            String[] codes = {
+                    ":emoj1:", ":emoj2:", ":emoj3:", ":emoj4:",
+                    ":emoj5:", ":emoj6:", ":emoj7:"
+            };
+
+            for (String code : codes) {
+                ImageIcon icon = emojiMap.get(code);
+
+                JButton btn;
+                if (icon != null) {
+                    btn = new JButton(icon);
+                } else {
+                    btn = new JButton(code);
+                }
+
+                btn.setMargin(new Insets(2, 2, 2, 2));
+
+                // 버튼 UI 스타일 정리
+                btn.setBackground(Color.WHITE);
+                btn.setOpaque(true);
+                btn.setFocusPainted(false);
+
+                // 해당 이모지 버튼을 클릭하면 해당 코드(:emoj1:)를 메시지로 전송함
+                btn.addActionListener(e -> sendEmoticon(code));
+
+                grid.add(btn);
+            }
+
+            // 외곽 패널에 그리드 패널 부착
+            outer.add(grid, BorderLayout.CENTER);
+
+            // 다이얼로그 콘텐츠를 outer로 교체
+            emojiDialog.setContentPane(outer);
+            emojiDialog.pack();
+        }
+
+        // 채팅방 창 근처에 이모티콘 창 위치시키기
+        Point p = this.getLocationOnScreen();
+        emojiDialog.setLocation(
+                p.x + 50,
+                p.y + this.getHeight() - emojiDialog.getHeight() - 50
+        );
+        emojiDialog.setVisible(true);
+    }
+
+
+    // -----------  리소스에서 이모티콘 아이콘을 읽고 지정된 크기로 스케일링하는 메소드 -------------
+    private ImageIcon loadEmoji(String path, int size) {
+        java.net.URL url = getClass().getResource(path);
+        if (url == null) {
+            System.out.println("Can't find Emoji resource: " + path);
+            return null;
+        }
+        ImageIcon icon = new ImageIcon(url);
+        Image img = icon.getImage();
+        Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+        return new ImageIcon(scaled);
+    }
+
+    // ==================================== 첨부 파일 이미지 ====================================
 
     private void openImageFileChooser() {
         JFileChooser chooser = new JFileChooser();
@@ -449,87 +532,14 @@ public class ChatRoom extends JFrame {
         return new ImageIcon(scaled);
     }
 
-    // ------------------- 이모지 선택창 ---------------------
-    private void showEmojiPicker() {
-        // 처음 호출 시에만 다이얼로그 구성
-        if (emojiDialog == null) {
-            emojiDialog = new JDialog(this, "Emoji", false);
 
-            // 바깥 여백 + 배경색을 주기 위한 외곽 패널
-            JPanel outer = new JPanel(new BorderLayout());
-            outer.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12)); // [추가] 바깥 여백
-            outer.setBackground(new Color(210, 210, 210));                    // [추가] 회색 배경
+    // =================================== 행맨 게임 ====================================
 
-            // 이모티콘 버튼을 배치할 그리드 패널
-            // outer 안에 들어가므로 투명 처리
-            JPanel grid = new JPanel(new GridLayout(2, 4, 5, 5));
-            grid.setOpaque(false); // 바깥 회색 배경이 보이게
-
-            String[] codes = {
-                    ":emoj1:", ":emoj2:", ":emoj3:", ":emoj4:",
-                    ":emoj5:", ":emoj6:", ":emoj7:"
-            };
-
-            for (String code : codes) {
-                ImageIcon icon = emojiMap.get(code);
-
-                JButton btn;
-                if (icon != null) {
-                    btn = new JButton(icon);
-                } else {
-                    btn = new JButton(code);
-                }
-
-                btn.setMargin(new Insets(2, 2, 2, 2));
-
-                // 버튼 UI 스타일 정리
-                btn.setBackground(Color.WHITE);
-                btn.setOpaque(true);
-                btn.setFocusPainted(false);
-
-                // 클릭하면 해당 코드(:emoj1:)를 메시지로 전송
-                btn.addActionListener(e -> sendEmoticon(code));
-
-                grid.add(btn);
-            }
-
-            // 외곽 패널에 그리드 패널 부착
-            outer.add(grid, BorderLayout.CENTER);
-
-            // 다이얼로그 콘텐츠를 outer로 교체
-            emojiDialog.setContentPane(outer);
-            emojiDialog.pack();
-        }
-
-        // 채팅방 창 근처에 이모티콘 창 위치시키기
-        Point p = this.getLocationOnScreen();
-        emojiDialog.setLocation(
-                p.x + 50,
-                p.y + this.getHeight() - emojiDialog.getHeight() - 50
-        );
-        emojiDialog.setVisible(true);
-    }
-
-
-    // 리소스에서 이모티콘 아이콘을 읽고 지정된 크기로 스케일링
-    private ImageIcon loadEmoji(String path, int size) {
-        java.net.URL url = getClass().getResource(path);
-        if (url == null) {
-            System.out.println("Can't find Emoji resource: " + path);
-            return null;
-        }
-        ImageIcon icon = new ImageIcon(url);
-        Image img = icon.getImage();
-        Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaled);
-    }
-
-    // ====================== 행맨 게임 ========================
     // 서버에서 "/hangStart roomId wordIdx themeIdx" 수신 시 호출됨
+
     public void openHangman(int wordIdx, int themeIdx) {
-        // 아직 행맨 다이얼로그를 만든 적이 없다면 처음 한 번 생성
         if (hangmanDialog == null) {
-            // 네트워크 모드 true, 그리고 네트워크로 이벤트 보내는 리스너 주입
+            //  네트워크로 이벤트 보내는 리스너 만들어서 주입
             hangmanPanel = new HangmanPanel(
                     new HangmanPanel.HangmanNetListener() {
                         @Override
@@ -550,9 +560,10 @@ public class ChatRoom extends JFrame {
                             clientNet.SendMessage("/hangStart " + roomId);
                         }
                     },
-                    true
+                    true // 네트워크 모드 true
             );
 
+            //행맨 게임 창을 만들고 보여줌 UI 띄우는거
             hangmanDialog = new JDialog(this, "Hangman - " + roomId, false);
             hangmanDialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
             hangmanDialog.getContentPane().add(hangmanPanel);

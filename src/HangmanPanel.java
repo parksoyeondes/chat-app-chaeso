@@ -12,9 +12,9 @@ public class HangmanPanel extends JPanel {
     // 네트워크 모드용 리스너
     // =========================================================
     public interface HangmanNetListener {
-        void onLetterChosen(char ch);
-        void onGameEnd();
-        void onRestartRequested();
+        void onLetterChosen(char ch); // 글자 눌렸을 때
+        void onGameEnd(); // 게임 끝낼 때
+        void onRestartRequested(); // 재시작 요청 할 때
     }
 
     private HangmanNetListener netListener;

@@ -33,14 +33,12 @@ public class JavaChatServer {
     public JavaChatServer() {
         try {
             socket = new ServerSocket(30000);
-            System.out.println("[Server] Server Start: port 30000");
 
             // 접속 수락 스레드 시작
             AcceptServer accept_server = new AcceptServer();
             accept_server.start();
 
         } catch (IOException e) {
-            log("Server start error: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -52,7 +50,6 @@ public class JavaChatServer {
             while (true) {
                 try {
                     client_socket = socket.accept();
-                    System.out.println("[Server] Client Connect: " + client_socket);
 
                     UserService new_user = new UserService(client_socket);
                     UserVec.add(new_user);
@@ -120,7 +117,6 @@ public class JavaChatServer {
                 WriteAll("/newUser " + UserName);
 
             } catch (IOException e) {
-                System.out.println("[Server] UserService creation failed: " + e);
                 e.printStackTrace();
             }
         }
@@ -141,14 +137,8 @@ public class JavaChatServer {
 
         // -------------------- 로그아웃 처리 --------------------
         // - 전체 목록에서 제거
-        // - 모두에게 퇴장 메시지 전송
         public void logout() {
             UserVec.removeElement(this);
-
-            String br_msg = "[" + UserName + "] has left the chat.\n";
-            WriteAll(br_msg);
-
-            System.out.println("[Server] Logout: " + UserName);
         }
 
         // -------------------- 문자열 패킷 전송 --------------------
@@ -215,8 +205,6 @@ public class JavaChatServer {
                     // /roomMsg 같은 경우 메시지 본문에 공백이 있어도 3번째 덩어리에 통째로 남는다
                     String[] args = msg.split(" ", 3);
                     String cmd = args[0];
-
-                    System.out.println("[Server] RECV(" + UserName + "): " + msg);
 
                     // ================== 방 열기 요청 ==================
                     // 클라 → 서버: /openRoom a,b,c

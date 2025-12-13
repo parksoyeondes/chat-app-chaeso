@@ -43,7 +43,6 @@ public class ClientNet {
 
             //서버에 소켓 연결
             socket = new Socket(ip, Integer.parseInt(port));
-            System.out.println("[Client] server connect: " + ip + ":" + port);
             
             //연결된 소켓에서 입출력 스트림을 얻고 래핑
             is = socket.getInputStream();
@@ -63,38 +62,19 @@ public class ClientNet {
         }
     }
 
-    // =========================
-    // [4] 채팅방 열기 요청(서버에게 요청)
-    // - roomId 예: "park,son"
-    // =========================
+
+    // --------------------  채팅방 열기 --------------------
     public void openRoom(String roomId) {
-        if (roomId == null) return;
-        roomId = roomId.trim();
-        if (roomId.isEmpty()) return;
-
-        SendMessage("/openRoom " + roomId);
-    }
-
-    // =========================
-    // [4-보조] 로컬에서 즉시 방 열기(테스트/즉시 오픈용)
-    // =========================
-    public void openRoomLocal(String roomId) {
-        if (roomId == null) return;
-        roomId = roomId.trim();
-        if (roomId.isEmpty()) return;
-
         ChatRoom room = roomMap.get(roomId);
+
         if (room == null) {
             room = new ChatRoom(roomId, this);
             roomMap.put(roomId, room);
-        } else {
-            room.setVisible(true);
-            room.toFront();
-            room.requestFocus();
         }
 
-        if (chatsPanel != null) chatsPanel.addRoom(roomId);
         room.setVisible(true);
+        room.toFront();
+        room.requestFocus();
     }
     
     // ------------------------ 서버 수신 스레드 -------------------------
@@ -398,8 +378,7 @@ public class ClientNet {
 
         String payload = name + "\t" + status;
         String encoded = URLEncoder.encode(payload, StandardCharsets.UTF_8);
-        
-        System.out.println("[Client] SEND /profileUpdate payload=" + payload + " encoded=" + encoded);
+
         SendMessage("/profileUpdate " + me + " " + encoded);
     }
 
